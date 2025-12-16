@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		40F8346B2CA70F3A007DAA65 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F8346A2CA70F3A007DAA65 /* AppDelegate.swift */; };
-		40F8346D2CA70F3A007DAA65 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F8346C2CA70F3A007DAA65 /* ViewController.swift */; };
 		40F8346F2CA70F3B007DAA65 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 40F8346E2CA70F3B007DAA65 /* Assets.xcassets */; };
 		40F8347C2CA71E4E007DAA65 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F8347B2CA71E4E007DAA65 /* main.swift */; };
 		40F834812CA724C8007DAA65 /* LibWhisper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40F834802CA724C8007DAA65 /* LibWhisper.swift */; };
@@ -17,6 +16,16 @@
 		D73B39382DC6622E00F3B948 /* whisper.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D73B39362DC6622E00F3B948 /* whisper.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		D7ECCB332CB9429E00558635 /* models in Resources */ = {isa = PBXBuildFile; fileRef = D7ECCB322CB9429E00558635 /* models */; };
 		D7ECCB3A2CB9BD4A00558635 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = D7ECCB392CB9BD4A00558635 /* HotKey */; };
+		E1A1B1A12EA80A1100000001 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1B1A02EA80A1100000001 /* SettingsManager.swift */; };
+		E1A1B1A32EA80A1100000002 /* OpenAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1B1A22EA80A1100000002 /* OpenAIClient.swift */; };
+		ED892BF22EF0B1DF00D395C2 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF12EF0B1DD00D395C2 /* FeedbackView.swift */; };
+		ED892BF42EF0B1E600D395C2 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF32EF0B1E500D395C2 /* PreferencesView.swift */; };
+		ED892BF62EF0B1ED00D395C2 /* TranscriptionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */; };
+		ED892BF82EF0B1F400D395C2 /* CustomPromptsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF72EF0B1F300D395C2 /* CustomPromptsView.swift */; };
+		ED892BFA2EF0B1FA00D395C2 /* PresetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */; };
+		ED892BFD2EF0B84000D395C2 /* PresetEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BFC2EF0B83E00D395C2 /* PresetEditorMode.swift */; };
+		ED892BFF2EF0B89000D395C2 /* KeyboardShortcutsExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */; };
+		EDDD7A5E2EF0147600806A79 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = D7ECCB3B2CB9BD4B00558637 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -36,7 +45,6 @@
 /* Begin PBXFileReference section */
 		40F834672CA70F3A007DAA65 /* whispertron.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = whispertron.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		40F8346A2CA70F3A007DAA65 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		40F8346C2CA70F3A007DAA65 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		40F8346E2CA70F3B007DAA65 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		40F8347B2CA71E4E007DAA65 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		40F834802CA724C8007DAA65 /* LibWhisper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibWhisper.swift; sourceTree = "<group>"; };
@@ -44,6 +52,15 @@
 		D73B39362DC6622E00F3B948 /* whisper.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = whisper.xcframework; path = "whisper_xcframework/build-apple/whisper.xcframework"; sourceTree = "<group>"; };
 		D7C3BEB12CBACF0E00AEB012 /* whispertron.entitlements */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.entitlements; path = whispertron.entitlements; sourceTree = "<group>"; };
 		D7ECCB322CB9429E00558635 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = whispertron/models; sourceTree = "<group>"; };
+		E1A1B1A02EA80A1100000001 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
+		E1A1B1A22EA80A1100000002 /* OpenAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIClient.swift; sourceTree = "<group>"; };
+		ED892BF12EF0B1DD00D395C2 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
+		ED892BF32EF0B1E500D395C2 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionSettingsView.swift; sourceTree = "<group>"; };
+		ED892BF72EF0B1F300D395C2 /* CustomPromptsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomPromptsView.swift; sourceTree = "<group>"; };
+		ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetEditorView.swift; sourceTree = "<group>"; };
+		ED892BFC2EF0B83E00D395C2 /* PresetEditorMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetEditorMode.swift; sourceTree = "<group>"; };
+		ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsExtension.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -51,6 +68,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				EDDD7A5E2EF0147600806A79 /* KeyboardShortcuts in Frameworks */,
 				D73B39372DC6622E00F3B948 /* whisper.xcframework in Frameworks */,
 				D7ECCB3A2CB9BD4A00558635 /* HotKey in Frameworks */,
 			);
@@ -82,10 +100,13 @@
 			children = (
 				40F8347B2CA71E4E007DAA65 /* main.swift */,
 				40F8346A2CA70F3A007DAA65 /* AppDelegate.swift */,
-				40F8346C2CA70F3A007DAA65 /* ViewController.swift */,
+				ED892BEF2EF0B1BB00D395C2 /* SwiftUI */,
 				40F8346E2CA70F3B007DAA65 /* Assets.xcassets */,
 				40F834802CA724C8007DAA65 /* LibWhisper.swift */,
 				40F834822CA72889007DAA65 /* Recorder.swift */,
+				E1A1B1A02EA80A1100000001 /* SettingsManager.swift */,
+				E1A1B1A22EA80A1100000002 /* OpenAIClient.swift */,
+				ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */,
 				D7C3BEB12CBACF0E00AEB012 /* whispertron.entitlements */,
 			);
 			path = whispertron;
@@ -99,6 +120,35 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		ED892BEF2EF0B1BB00D395C2 /* SwiftUI */ = {
+			isa = PBXGroup;
+			children = (
+				ED892BFB2EF0B83B00D395C2 /* Models */,
+				ED892BF02EF0B1C700D395C2 /* Views */,
+			);
+			path = SwiftUI;
+			sourceTree = "<group>";
+		};
+		ED892BF02EF0B1C700D395C2 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */,
+				ED892BF72EF0B1F300D395C2 /* CustomPromptsView.swift */,
+				ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */,
+				ED892BF32EF0B1E500D395C2 /* PreferencesView.swift */,
+				ED892BF12EF0B1DD00D395C2 /* FeedbackView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		ED892BFB2EF0B83B00D395C2 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				ED892BFC2EF0B83E00D395C2 /* PresetEditorMode.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -106,6 +156,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 40F834762CA70F3B007DAA65 /* Build configuration list for PBXNativeTarget "whispertron" */;
 			buildPhases = (
+				E1A1B1B02EA80B1100000005 /* Reset Accessibility Permissions */,
 				40F834632CA70F3A007DAA65 /* Sources */,
 				40F834642CA70F3A007DAA65 /* Frameworks */,
 				40F834652CA70F3A007DAA65 /* Resources */,
@@ -118,6 +169,7 @@
 			name = whispertron;
 			packageProductDependencies = (
 				D7ECCB392CB9BD4A00558635 /* HotKey */,
+				D7ECCB3B2CB9BD4B00558637 /* KeyboardShortcuts */,
 			);
 			productName = mt;
 			productReference = 40F834672CA70F3A007DAA65 /* whispertron.app */;
@@ -149,6 +201,7 @@
 			mainGroup = 40F8345E2CA70F3A007DAA65;
 			packageReferences = (
 				D7ECCB382CB9BD4A00558635 /* XCRemoteSwiftPackageReference "HotKey" */,
+				D7ECCB3A2CB9BD4B00558636 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
 			);
 			productRefGroup = 40F834682CA70F3A007DAA65 /* Products */;
 			projectDirPath = "";
@@ -171,16 +224,47 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
+/* Begin PBXShellScriptBuildPhase section */
+		E1A1B1B02EA80B1100000005 /* Reset Accessibility Permissions */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Reset Accessibility Permissions";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Reset Accessibility permissions for development\ntccutil reset Accessibility com.keminglabs.whispertron 2>/dev/null || true\necho \"Accessibility permissions reset for whispertron\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		40F834632CA70F3A007DAA65 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ED892BF62EF0B1ED00D395C2 /* TranscriptionSettingsView.swift in Sources */,
 				40F834832CA72889007DAA65 /* Recorder.swift in Sources */,
 				40F834812CA724C8007DAA65 /* LibWhisper.swift in Sources */,
-				40F8346D2CA70F3A007DAA65 /* ViewController.swift in Sources */,
+				ED892BF42EF0B1E600D395C2 /* PreferencesView.swift in Sources */,
+				ED892BFD2EF0B84000D395C2 /* PresetEditorMode.swift in Sources */,
 				40F8346B2CA70F3A007DAA65 /* AppDelegate.swift in Sources */,
+				ED892BFF2EF0B89000D395C2 /* KeyboardShortcutsExtension.swift in Sources */,
+				ED892BFA2EF0B1FA00D395C2 /* PresetEditorView.swift in Sources */,
 				40F8347C2CA71E4E007DAA65 /* main.swift in Sources */,
+				ED892BF22EF0B1DF00D395C2 /* FeedbackView.swift in Sources */,
+				E1A1B1A12EA80A1100000001 /* SettingsManager.swift in Sources */,
+				E1A1B1A32EA80A1100000002 /* OpenAIClient.swift in Sources */,
+				ED892BF82EF0B1F400D395C2 /* CustomPromptsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -225,7 +309,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -289,7 +373,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -312,9 +396,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_ENTITLEMENTS = whispertron/whispertron.entitlements;
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -347,9 +430,8 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "";
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_ENTITLEMENTS = whispertron/whispertron.entitlements;
+				CODE_SIGN_IDENTITY = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
@@ -409,6 +491,14 @@
 				version = 0.2.0;
 			};
 		};
+		D7ECCB3A2CB9BD4B00558636 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/KeyboardShortcuts";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -416,6 +506,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = D7ECCB382CB9BD4A00558635 /* XCRemoteSwiftPackageReference "HotKey" */;
 			productName = HotKey;
+		};
+		D7ECCB3B2CB9BD4B00558637 /* KeyboardShortcuts */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D7ECCB3A2CB9BD4B00558636 /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */;
+			productName = KeyboardShortcuts;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

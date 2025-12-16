@@ -1,4 +1,4 @@
-import AVFAudio
+@preconcurrency import AVFAudio
 import AVFoundation
 import AppKit
 import CoreAudio
@@ -274,8 +274,12 @@ actor Recorder {
     return currentAudioLevel
   }
 
-  func transcribe() async -> String {
-    await whisperContext.fullTranscribe(samples: audioBuffer)
+  func getIsRecording() -> Bool {
+    return isRecording
+  }
+
+  func transcribe(language: String?, translate: Bool) async -> String {
+    await whisperContext.fullTranscribe(samples: audioBuffer, language: language, translate: translate)
     audioBuffer.removeAll()
     return await whisperContext.getTranscription().trimmingCharacters(in: .whitespaces)
   }
