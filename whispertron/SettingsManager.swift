@@ -96,6 +96,11 @@ enum OutputLanguage: String, CaseIterable, Codable {
 
 // MARK: - 2. Configuration Object (The JSON Structure)
 
+struct ModelAutoUnloadSettings: Codable {
+  var enabled: Bool = false
+  var timeoutMinutes: Int = 1
+}
+
 struct AppConfiguration: Codable {
     var openAIKey: String? = nil
     var currentModel: ModelInfo = .smallEnglish
@@ -103,6 +108,7 @@ struct AppConfiguration: Codable {
     var translateToEnglish: Bool = false
     var transcriptionMode: TranscriptionMode = .onlyTranscribe
     var presets: [AIPreset] = []
+    var autoUnload: ModelAutoUnloadSettings = ModelAutoUnloadSettings()
 
     static let defaults = AppConfiguration(
         openAIKey: nil,
@@ -116,7 +122,8 @@ struct AppConfiguration: Codable {
                 systemPrompt: "Fix punctuation and grammar issues. Pay attention to the context of words based on the sentence. Keep the tone casual. Only respond with the fixed punctuation.",
                 modelName: "gpt-4.1"
             )
-        ]
+        ],
+        autoUnload: ModelAutoUnloadSettings()
     )
 }
 

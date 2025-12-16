@@ -139,6 +139,31 @@ struct TranscriptionSettingsView: View {
         KeyboardShortcuts.Recorder(for: .toggleRecordingButton)
       }
 
+      Divider()
+        .padding(.vertical, 4)
+
+      formField(
+        label: "Auto-Unload Model",
+        helpText: "Automatically unload model from memory after idle period (reduces memory usage for large models)"
+      ) {
+        Toggle("Enable auto-unload", isOn: $settings.config.autoUnload.enabled)
+      }
+
+      if settings.config.autoUnload.enabled {
+        formField(label: "Idle Timeout") {
+          HStack(spacing: 8) {
+            Text("\(settings.config.autoUnload.timeoutMinutes)")
+              .frame(width: 60)
+
+            Text("minutes")
+              .foregroundColor(.secondary)
+
+            Stepper("", value: $settings.config.autoUnload.timeoutMinutes, in: 1...10)
+              .labelsHidden()
+          }
+        }
+      }
+
       HStack {
         Spacer()
         Button("Reset to Defaults") {
@@ -155,6 +180,8 @@ struct TranscriptionSettingsView: View {
         .fill(Color(NSColor.controlBackgroundColor))
         .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
     )
+    .onChange(of: settings.config.autoUnload.enabled) { _ in settings.save() }
+    .onChange(of: settings.config.autoUnload.timeoutMinutes) { _ in settings.save() }
   }
 
   private var accessibilityCard: some View {

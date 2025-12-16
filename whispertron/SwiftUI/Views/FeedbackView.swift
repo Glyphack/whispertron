@@ -20,10 +20,21 @@ struct FeedbackView: View {
         case .recording:
           audioVisualizerView
           timerView
+          Text("Recording")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.secondary)
 
         case .transcribing:
-          audioVisualizerView
-          timerView
+          pulsingWaveformView
+          Text("Transcribing...")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.secondary)
+
+        case .loading:
+          spinningIconView
+          Text("Loading model...")
+            .font(.system(size: 13, weight: .medium))
+            .foregroundColor(.secondary)
 
         case .downloading(let progress):
           VStack(spacing: 16) {
@@ -33,6 +44,10 @@ struct FeedbackView: View {
 
             ProgressView(value: progress, total: 1.0)
               .frame(width: 120)
+
+            Text("Downloading")
+              .font(.system(size: 13, weight: .medium))
+              .foregroundColor(.secondary)
           }
         }
       }
@@ -86,6 +101,49 @@ struct FeedbackView: View {
       let seconds = Int(duration) % 60
       return String(format: "%d:%02d", minutes, seconds)
     }
+  }
+
+  @ViewBuilder
+  private var pulsingWaveformView: some View {
+    ZStack {
+      ForEach(0..<3, id: \.self) { index in
+        Image(systemName: "waveform")
+          .font(.system(size: 70, weight: .medium))
+          .foregroundColor(.primary.opacity(0.3))
+          .scaleEffect(1.0 + CGFloat(index) * 0.15)
+          .opacity(pulseOpacity(for: index))
+      }
+
+      Image(systemName: "waveform")
+        .font(.system(size: 70, weight: .medium))
+        .foregroundColor(.primary)
+    }
+    .frame(height: 80)
+  }
+
+  @ViewBuilder
+  private var spinningIconView: some View {
+    Image(systemName: "brain")
+      .font(.system(size: 70, weight: .medium))
+      .foregroundColor(.primary)
+      .rotationEffect(.degrees(spinRotation))
+      .frame(height: 80)
+  }
+
+  private var pulseOpacity: Double {
+    let time = Date().timeIntervalSinceReferenceDate
+    return 0.3 + (sin(time * 3) * 0.2)
+  }
+
+  private func pulseOpacity(for index: Int) -> Double {
+    let time = Date().timeIntervalSinceReferenceDate
+    let offset = Double(index) * 0.3
+    return max(0, sin(time * 2 + offset) * 0.5)
+  }
+
+  private var spinRotation: Double {
+    let time = Date().timeIntervalSinceReferenceDate
+    return (time * 60).truncatingRemainder(dividingBy: 360)
   }
 
   private func barHeights(audioLevel: Float, barCount: Int = 12) -> [CGFloat] {

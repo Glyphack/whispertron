@@ -12,6 +12,7 @@ import os
 enum FeedbackState: Equatable {
   case recording
   case transcribing
+  case loading
   case downloading(progress: Double)
 }
 
@@ -53,13 +54,153 @@ extension NSColor {
   }
 }
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
+// MARK: - Model Auto-Unload
+
+protocol ModelAutoUnloadDelegate: AnyObject {
+  var whisperContext: WhisperContext? { get set }
+  var recorder: Recorder? { get set }
+  func showFeedback(_ state: FeedbackState?)
+  func showError(_ message: String)
+}
+
+@MainActor
+class ModelAutoUnloadManager {
+  // MARK: - Properties
+  private var timer: Timer?
+  private var lastTranscriptionTime: Date?
+  private var isReloading = false
+
+  private weak var delegate: ModelAutoUnloadDelegate?
+  private let settings: AppSettings
+  private let logger: Logger
+
+  private var config: ModelAutoUnloadSettings {
+    settings.config.autoUnload
+  }
+
+  private var isModelLoaded: Bool {
+    delegate?.whisperContext != nil
+  }
+
+  // MARK: - Initialization
+  init(settings: AppSettings, delegate: ModelAutoUnloadDelegate, logger: Logger) {
+    self.settings = settings
+    self.delegate = delegate
+    self.logger = logger
+  }
+
+  // MARK: - Public Methods
+
+  func scheduleUnload() {
+    // Cancel any existing timer
+    timer?.invalidate()
+    timer = nil
+
+    guard config.enabled else { return }
+    guard isModelLoaded else { return }
+
+    lastTranscriptionTime = Date()
+    let timeoutSeconds = TimeInterval(config.timeoutMinutes * 60)
+
+    logger.info("Scheduling model unload in \(timeoutSeconds) seconds")
+
+    timer = Timer.scheduledTimer(withTimeInterval: timeoutSeconds, repeats: false) { [weak self] _ in
+      guard let self = self else { return }
+      Task { @MainActor in
+        await self.unloadIfIdle()
+      }
+    }
+  }
+
+  func ensureModelLoaded(
+    getCurrentModelPath: () -> String,
+    createContext: (String) throws -> WhisperContext,
+    createRecorder: (WhisperContext) async throws -> Recorder
+  ) async throws {
+    guard let delegate = delegate else { return }
+    guard !isModelLoaded else { return }
+
+    guard !isReloading else {
+      throw NSError(
+        domain: "ModelAutoUnload",
+        code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "Model reload already in progress"]
+      )
+    }
+
+    isReloading = true
+    defer { isReloading = false }
+
+    logger.info("Reloading model...")
+    delegate.showFeedback(.loading)
+
+    do {
+      let modelPath = getCurrentModelPath()
+      let context = try createContext(modelPath)
+      delegate.whisperContext = context
+      delegate.recorder = try await createRecorder(context)
+
+      logger.info("Model reloaded successfully")
+      delegate.showFeedback(nil)
+
+      // Automatically schedule unload after model is loaded
+      scheduleUnload()
+    } catch {
+      logger.error("Failed to reload model: \(error.localizedDescription)")
+      delegate.showFeedback(nil)
+      throw error
+    }
+  }
+
+  func handleSleep() {
+    logger.info("System going to sleep - cancelling model unload timer")
+    timer?.invalidate()
+    timer = nil
+  }
+
+  func handleWake() {
+    logger.info("System woke up - rescheduling model unload")
+    scheduleUnload()
+  }
+
+  // MARK: - Private Methods
+
+  private func unloadIfIdle() async {
+    guard let delegate = delegate else { return }
+    guard let lastTranscription = lastTranscriptionTime else { return }
+
+    let timeoutSeconds = TimeInterval(config.timeoutMinutes * 60)
+    let elapsed = Date().timeIntervalSince(lastTranscription)
+
+    guard elapsed >= timeoutSeconds else {
+      logger.info("Model unload cancelled - activity detected")
+      return
+    }
+
+    // Don't unload if currently recording
+    if await delegate.recorder?.getIsRecording() == true {
+      logger.info("Model unload skipped - recording in progress")
+      scheduleUnload() // Reschedule
+      return
+    }
+
+    logger.info("Unloading model after \(Int(elapsed)) seconds of inactivity")
+
+    // Unload model - deinit will automatically call whisper_free()
+    delegate.whisperContext = nil
+    delegate.recorder = nil
+
+    logger.info("Model unloaded successfully")
+  }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate, ModelAutoUnloadDelegate {
   // MARK: - Properties
 
   private var statusItem: NSStatusItem!
   private var recordMenuItem: NSMenuItem!
-  private var whisperContext: WhisperContext?
-  private var recorder: Recorder?
+  var whisperContext: WhisperContext?
+  var recorder: Recorder?
   private var settingsManager: AppSettings = AppSettings()
   private var openAIClient: OpenAIClient!
   private var preferencesWindow: NSWindow?
@@ -84,6 +225,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   private var lastTranscript = ""
   private let MinimumTranscriptionDuration = 1.0
   private var audioLevelTimer: Timer?
+  private var autoUnloadManager: ModelAutoUnloadManager!
 
   // MARK: - Lifecycle
 
@@ -92,6 +234,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       self,
       selector: #selector(refreshMenuBar),
       name: NSNotification.Name("RefreshMenuBar"),
+      object: nil
+    )
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleSystemSleep),
+      name: NSWorkspace.willSleepNotification,
+      object: nil
+    )
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleSystemWake),
+      name: NSWorkspace.didWakeNotification,
       object: nil
     )
 
@@ -114,6 +270,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
     settingsManager = AppSettings()
     openAIClient = OpenAIClient(settingsManager: settingsManager)
+    autoUnloadManager = ModelAutoUnloadManager(
+      settings: settingsManager,
+      delegate: self,
+      logger: logger
+    )
 
     setupMenus()
     setupApplicationMenu()
@@ -171,6 +332,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
         NSWorkspace.shared.open(url)
       }
+    }
+  }
+
+  // MARK: - System Sleep/Wake Handling
+
+  @objc func handleSystemSleep() {
+    Task { @MainActor in
+      autoUnloadManager.handleSleep()
+    }
+  }
+
+  @objc func handleSystemWake() {
+    Task { @MainActor in
+      autoUnloadManager.handleWake()
     }
   }
 
@@ -278,6 +453,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
           // Keep timer running but stop audio level updates
           viewModel.audioLevel = 0
           // Timer continues via existing timer (don't stop it)
+
+        case .loading:
+          // Stop audio level updates for loading state
+          self.stopAudioLevelPulsing()
 
         case .downloading:
           self.stopAudioLevelPulsing()
@@ -530,7 +709,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   }
 
   @objc func openAbout() {
-    if let url = URL(string: "https://www.github.com/lynaghk/whispertron") {
+    if let url = URL(string: "https://github.com/Glyphack/whispertron") {
       NSWorkspace.shared.open(url)
     }
   }
@@ -598,6 +777,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       }
 
       logger.info("Successfully switched to model: \(model.displayName)")
+
+      // Schedule auto-unload for new model
+      await autoUnloadManager.scheduleUnload()
 
     } catch {
       logger.error("Error switching model: \(error.localizedDescription)")
@@ -695,24 +877,49 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       await MainActor.run {
         self.recordMenuItem.title = "Record"
       }
+      await autoUnloadManager.scheduleUnload()
       showFeedback(nil)
     }
   }
 
   @objc func startRecording() {
-    showFeedback(.recording)
     statusItem.button?.image = recordingImage
     statusItem.button?.appearsDisabled = false
     statusItem.button?.cell?.isHighlighted = true
 
     Task {
       do {
+        // Ensure model is loaded before starting recording
+        // This will show .loading feedback if model needs to be loaded
+        try await autoUnloadManager.ensureModelLoaded(
+          getCurrentModelPath: { self.settingsManager.getCurrentModelPath() },
+          createContext: { path in try WhisperContext.createContext(path: path) },
+          createRecorder: { context in try await Recorder(whisperContext: context) }
+        )
+
+        // After model is loaded, show recording feedback and start recording
+        await MainActor.run {
+          showFeedback(.recording)
+        }
+
         try await recorder?.startRecording()
         await MainActor.run {
           recordMenuItem.title = "Stop Recording"
         }
       } catch {
         logger.error("Error starting recording: \(error.localizedDescription)")
+
+        let alert = NSAlert()
+        alert.messageText = "Recording Failed"
+        alert.informativeText = "Could not start recording: \(error.localizedDescription)"
+        alert.alertStyle = .critical
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+
+        // Reset UI
+        statusItem.button?.image = standbyImage
+        statusItem.button?.cell?.isHighlighted = false
+        showFeedback(nil)
       }
     }
   }
@@ -740,12 +947,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       )
       window.title = "Preferences"
       window.contentViewController = hostingController
-      window.center()
       window.delegate = self
       window.isReleasedWhenClosed = false
 
       preferencesWindow = window
     }
+
+    // Center window every time it's opened
+    preferencesWindow?.center()
 
     // Activate app and make window key to enable paste operations
     NSApp.setActivationPolicy(.regular)
