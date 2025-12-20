@@ -1,4 +1,4 @@
-import AVFAudio
+@preconcurrency import AVFAudio
 import AVFoundation
 import AppKit
 import CoreAudio
@@ -26,6 +26,7 @@ actor Recorder {
   private var converter: AVAudioConverter?
   private var isRecording = false
   private var deviceChangeObservers: [NSObjectProtocol] = []
+  private var currentAudioLevel: Float = 0.0
 
   private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "Recorder")
 
@@ -201,6 +202,11 @@ actor Recorder {
   }
 
   private func processAudio(samples: [Float]) async {
+    // Calculate RMS (Root Mean Square) for audio level
+    let sumOfSquares = samples.reduce(0) { $0 + $1 * $1 }
+    let rms = sqrt(sumOfSquares / Float(samples.count))
+    currentAudioLevel = min(rms * 10, 1.0) // Scale and clamp to 0-1
+    
     if let downsampledChunk = downsample(samples) {
       audioBuffer.append(contentsOf: downsampledChunk)
     }
@@ -264,8 +270,16 @@ actor Recorder {
     return Array(downsampledData)
   }
 
-  func transcribe() async -> String {
-    await whisperContext.fullTranscribe(samples: audioBuffer)
+  func getAudioLevel() -> Float {
+    return currentAudioLevel
+  }
+
+  func getIsRecording() -> Bool {
+    return isRecording
+  }
+
+  func transcribe(language: String?, translate: Bool) async -> String {
+    await whisperContext.fullTranscribe(samples: audioBuffer, language: language, translate: translate)
     audioBuffer.removeAll()
     return await whisperContext.getTranscription().trimmingCharacters(in: .whitespaces)
   }

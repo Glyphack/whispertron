@@ -1,0 +1,25 @@
+Do not waste tokens. Prefer non verbose commands and only take what you need.
+I need to create the files in Xcode. When you want a new file ask me to create it.
+
+# Commands
+
+Build: `./build.sh` (downloads dependencies and builds with xcodebuild)
+
+Test: No automated tests
+
+Lint: No linter configured
+
+# Architecture
+
+macOS dictation app using Whisper.cpp via xcframework. HotKey triggers recording, transcribes audio, injects text via CGEvent. Uses AVAudioEngine for recording.
+
+Key components:
+
+- AppDelegate.swift: Main app logic, hotkey handling, text injection
+- Recorder.swift: Audio recording and transcription
+- LibWhisper.swift: Whisper.cpp bindings
+- ViewController.swift: UI (if any)
+
+# Code Style
+
+Swift with modern concurrency (async/await). Uses os.Logger for logging. Private vars/properties. Closures for handlers. No explicit types unless needed. Error handling with do/catch. No trailing semicolons. 2-space indentation.

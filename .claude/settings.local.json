@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(./build.sh:*)",
+      "Bash(git diff:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
