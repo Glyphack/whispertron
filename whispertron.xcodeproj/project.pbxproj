@@ -18,6 +18,8 @@
 		D7ECCB3A2CB9BD4A00558635 /* HotKey in Frameworks */ = {isa = PBXBuildFile; productRef = D7ECCB392CB9BD4A00558635 /* HotKey */; };
 		E1A1B1A12EA80A1100000001 /* SettingsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1B1A02EA80A1100000001 /* SettingsManager.swift */; };
 		E1A1B1A32EA80A1100000002 /* OpenAIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A1B1A22EA80A1100000002 /* OpenAIClient.swift */; };
+		ED341CC72EF436FE00BDEA34 /* HistoryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED341CC62EF436FE00BDEA34 /* HistoryManager.swift */; };
+		ED341CC92EF4371000BDEA34 /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED341CC82EF4370E00BDEA34 /* HistoryView.swift */; };
 		ED892BF22EF0B1DF00D395C2 /* FeedbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF12EF0B1DD00D395C2 /* FeedbackView.swift */; };
 		ED892BF42EF0B1E600D395C2 /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF32EF0B1E500D395C2 /* PreferencesView.swift */; };
 		ED892BF62EF0B1ED00D395C2 /* TranscriptionSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */; };
@@ -54,6 +56,8 @@
 		D7ECCB322CB9429E00558635 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = whispertron/models; sourceTree = "<group>"; };
 		E1A1B1A02EA80A1100000001 /* SettingsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsManager.swift; sourceTree = "<group>"; };
 		E1A1B1A22EA80A1100000002 /* OpenAIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIClient.swift; sourceTree = "<group>"; };
+		ED341CC62EF436FE00BDEA34 /* HistoryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryManager.swift; sourceTree = "<group>"; };
+		ED341CC82EF4370E00BDEA34 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 		ED892BF12EF0B1DD00D395C2 /* FeedbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackView.swift; sourceTree = "<group>"; };
 		ED892BF32EF0B1E500D395C2 /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
 		ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionSettingsView.swift; sourceTree = "<group>"; };
@@ -104,6 +108,7 @@
 				40F8346E2CA70F3B007DAA65 /* Assets.xcassets */,
 				40F834802CA724C8007DAA65 /* LibWhisper.swift */,
 				40F834822CA72889007DAA65 /* Recorder.swift */,
+				ED341CC62EF436FE00BDEA34 /* HistoryManager.swift */,
 				E1A1B1A02EA80A1100000001 /* SettingsManager.swift */,
 				E1A1B1A22EA80A1100000002 /* OpenAIClient.swift */,
 				ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */,
@@ -132,6 +137,7 @@
 		ED892BF02EF0B1C700D395C2 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				ED341CC82EF4370E00BDEA34 /* HistoryView.swift */,
 				ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */,
 				ED892BF72EF0B1F300D395C2 /* CustomPromptsView.swift */,
 				ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */,
@@ -256,8 +262,10 @@
 				40F834832CA72889007DAA65 /* Recorder.swift in Sources */,
 				40F834812CA724C8007DAA65 /* LibWhisper.swift in Sources */,
 				ED892BF42EF0B1E600D395C2 /* PreferencesView.swift in Sources */,
+				ED341CC72EF436FE00BDEA34 /* HistoryManager.swift in Sources */,
 				ED892BFD2EF0B84000D395C2 /* PresetEditorMode.swift in Sources */,
 				40F8346B2CA70F3A007DAA65 /* AppDelegate.swift in Sources */,
+				ED341CC92EF4371000BDEA34 /* HistoryView.swift in Sources */,
 				ED892BFF2EF0B89000D395C2 /* KeyboardShortcutsExtension.swift in Sources */,
 				ED892BFA2EF0B1FA00D395C2 /* PresetEditorView.swift in Sources */,
 				40F8347C2CA71E4E007DAA65 /* main.swift in Sources */,

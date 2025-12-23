@@ -164,6 +164,23 @@ struct TranscriptionSettingsView: View {
         }
       }
 
+      Divider()
+        .padding(.vertical, 4)
+
+      formField(
+        label: "Trailing Buffer",
+        helpText: "Delay before stopping recording to capture trailing audio. Set to 0 to disable."
+      ) {
+        HStack(spacing: 8) {
+          TextField("", value: $settings.config.trailingBufferMs, formatter: NumberFormatter())
+            .textFieldStyle(.roundedBorder)
+            .frame(width: 80)
+
+          Text("ms")
+            .foregroundColor(.secondary)
+        }
+      }
+
       HStack {
         Spacer()
         Button("Reset to Defaults") {
@@ -182,6 +199,7 @@ struct TranscriptionSettingsView: View {
     )
     .onChange(of: settings.config.autoUnload.enabled) { _ in settings.save() }
     .onChange(of: settings.config.autoUnload.timeoutMinutes) { _ in settings.save() }
+    .onChange(of: settings.config.trailingBufferMs) { _ in settings.save() }
   }
 
   private var accessibilityCard: some View {

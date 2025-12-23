@@ -226,6 +226,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   private let MinimumTranscriptionDuration = 1.0
   private var audioLevelTimer: Timer?
   private var autoUnloadManager: ModelAutoUnloadManager!
+  private var historyManager = HistoryManager()
+  private var historyWindow: NSWindow?
 
   // MARK: - Lifecycle
 
@@ -295,6 +297,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         logger.error("Error creating Whisper context: \(error.localizedDescription)")
       }
     }
+
+      autoUnloadManager.scheduleUnload()
   }
 
   // MARK: - Accessibility
@@ -351,52 +355,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
   // MARK: - Transcription
 
-  // Translated from espanso's injectString function
   func insertStringAtCursor(_ string: String) async -> Bool {
     logger.info("Attempting to insert text: \"\(string)\"")
 
-    // Check permissions before attempting insertion
     if !checkAccessibilityPermissions() {
       return false
     }
 
-    let udelay = UInt32(1000)
-
     return await MainActor.run {
-      let buffer = Array(string.utf16)
+      // Copy text to clipboard
+      let pasteboard = NSPasteboard.general
+      pasteboard.clearContents()
+      pasteboard.setString(string, forType: .string)
 
-      // Because of a bug ( or undocumented limit ) of the CGEventKeyboardSetUnicodeString method
-      // the string gets truncated after 20 characters, so we need to send multiple events.
-      var i = 0
-      let chunkSize = 20
-      let totalChunks = (buffer.count + chunkSize - 1) / chunkSize
-      var failedChunks = 0
-
-      while i < buffer.count {
-        let currentChunkSize = min(chunkSize, buffer.count - i)
-        let offsetBuffer = Array(buffer[i..<(i + currentChunkSize)])
-
-        if let e = CGEvent(keyboardEventSource: nil, virtualKey: 0x31, keyDown: true) {
-          e.keyboardSetUnicodeString(stringLength: currentChunkSize, unicodeString: offsetBuffer)
-          e.post(tap: .cghidEventTap)
-          self.logger.debug("Posted CGEvent chunk \((i/chunkSize) + 1)/\(totalChunks)")
-        } else {
-          self.logger.error("Failed to create CGEvent for chunk \((i/chunkSize) + 1)")
-          failedChunks += 1
-        }
-
-        usleep(udelay)
-
-        i += currentChunkSize
+      // Simulate Cmd+V
+      let vKeyCode: CGKeyCode = 0x09
+      guard let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: vKeyCode, keyDown: true),
+            let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: vKeyCode, keyDown: false) else {
+        self.logger.error("Failed to create CGEvent for Cmd+V")
+        return false
       }
 
-      let success = failedChunks == 0
-      if success {
-        self.logger.info("Text insertion completed (\(totalChunks) chunks)")
-      } else {
-        self.logger.error("Text insertion failed: \(failedChunks)/\(totalChunks) chunks failed")
-      }
-      return success
+      keyDown.flags = .maskCommand
+      keyUp.flags = .maskCommand
+
+      keyDown.post(tap: .cghidEventTap)
+      usleep(1000)
+      keyUp.post(tap: .cghidEventTap)
+
+      self.logger.info("Text insertion via clipboard completed")
+      return true
     }
   }
 
@@ -577,6 +565,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     menu.addItem(translateItem)
 
     menu.addItem(NSMenuItem.separator())
+
+    let historyItem = NSMenuItem(title: "History...", action: #selector(openHistory), keyEquivalent: "h")
+    menu.addItem(historyItem)
 
     recordMenuItem = NSMenuItem(title: "Record", action: #selector(didTapRecord), keyEquivalent: "")
     menu.addItem(recordMenuItem)
@@ -848,6 +839,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     statusItem.button?.cell?.isHighlighted = false
 
     Task {
+      // Wait for trailing buffer to capture any remaining audio
+      let trailingMs = settingsManager.config.trailingBufferMs
+      if trailingMs > 0 {
+        try? await Task.sleep(nanoseconds: UInt64(trailingMs) * 1_000_000)
+      }
+
       await recorder!.stopRecording()
       let duration = await recorder!.recordedDurationSeconds()
       logger.info("Recording stopped. Duration: \(String(format: "%.2f", duration))s")
@@ -859,6 +856,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         logger.info("Transcription completed: \"\(transcript)\"")
 
         let finalText = await processTranscript(transcript)
+        historyManager.addItem(finalText)
 
         logger.info("Inserting text into cursor position: \"\(finalText)\"")
         let insertionSucceeded = await self.insertStringAtCursor(finalText)
@@ -962,12 +960,43 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     preferencesWindow?.makeKeyAndOrderFront(nil)
   }
 
-  func windowWillClose(_ notification: Notification) {
-    guard let window = notification.object as? NSWindow,
-          window == preferencesWindow else { return }
+  @objc func openHistory() {
+    print("[AppDelegate] openHistory called")
+    historyManager.debugPrint()
+    if historyWindow == nil {
+      print("[AppDelegate] Creating new history window")
+      let historyView = HistoryView(historyManager: historyManager)
+      let hostingController = NSHostingController(rootView: historyView)
 
-    NSApp.setActivationPolicy(.accessory)
-    NotificationCenter.default.post(name: NSNotification.Name("RefreshMenuBar"), object: nil)
+      let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 700, height: 500),
+        styleMask: [.titled, .closable, .resizable, .miniaturizable],
+        backing: .buffered,
+        defer: false
+      )
+      window.title = "Transcription History"
+      window.contentViewController = hostingController
+      window.delegate = self
+      window.isReleasedWhenClosed = false
+
+      historyWindow = window
+    }
+
+    historyWindow?.center()
+    NSApp.setActivationPolicy(.regular)
+    NSApp.activate(ignoringOtherApps: true)
+    historyWindow?.makeKeyAndOrderFront(nil)
+  }
+
+  func windowWillClose(_ notification: Notification) {
+    guard let window = notification.object as? NSWindow else { return }
+
+    if window == preferencesWindow {
+      NSApp.setActivationPolicy(.accessory)
+      NotificationCenter.default.post(name: NSNotification.Name("RefreshMenuBar"), object: nil)
+    } else if window == historyWindow {
+      NSApp.setActivationPolicy(.accessory)
+    }
   }
 
   @objc func refreshMenuBar() {
