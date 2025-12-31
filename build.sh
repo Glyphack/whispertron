@@ -30,7 +30,7 @@ xcodebuild -project whispertron.xcodeproj -scheme whispertron -configuration Rel
 
 echo "you'll probably need to reset accessibility permissions before the build will work:"
 echo ""
-echo "    tccutil reset Accessibility com.keminglabs.whispertron"
+echo "    tccutil reset Accessibility com.glyphack.whispertron"
 echo ""
 echo "then try running:"
 echo ""

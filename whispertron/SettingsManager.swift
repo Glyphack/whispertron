@@ -133,7 +133,7 @@ class AppSettings: ObservableObject {
 
     @Published var config: AppConfiguration
     @Published var availableModels: [ModelInfo] = []
-    private let logger = Logger(subsystem: "com.keminglabs.whispertron", category: "AppSettings")
+    private let logger = Logger(subsystem: "com.glyphack.whispertron", category: "AppSettings")
 
     init() {
         self.config = AppSettings.loadFromDisk()
@@ -448,7 +448,7 @@ class AppSettings: ObservableObject {
 
     // MARK: - Keychain Methods for API Key
 
-    private static let keychainService = "com.keminglabs.whispertron"
+    private static let keychainService = "com.glyphack.whispertron"
     private static let keychainAccount = "openai-api-key"
 
     /// Checks if an API key exists in the Keychain
