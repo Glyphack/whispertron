@@ -164,6 +164,25 @@ struct TranscriptionSettingsView: View {
         }
       }
 
+      Divider()
+        .padding(.vertical, 4)
+
+      formField(
+        label: "History Limit",
+        helpText: "Maximum number of transcriptions to keep in history. Set to 0 to disable history tracking."
+      ) {
+        HStack(spacing: 8) {
+          Text("\(settings.config.maxHistoryEntries)")
+            .frame(width: 60)
+
+          Text("entries")
+            .foregroundColor(.secondary)
+
+          Stepper("", value: $settings.config.maxHistoryEntries, in: 0...10000, step: 50)
+            .labelsHidden()
+        }
+      }
+
       HStack {
         Spacer()
         Button("Reset to Defaults") {
@@ -182,6 +201,7 @@ struct TranscriptionSettingsView: View {
     )
     .onChange(of: settings.config.autoUnload.enabled) { _ in settings.save() }
     .onChange(of: settings.config.autoUnload.timeoutMinutes) { _ in settings.save() }
+    .onChange(of: settings.config.maxHistoryEntries) { _ in settings.save() }
   }
 
   private var accessibilityCard: some View {

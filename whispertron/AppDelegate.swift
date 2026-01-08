@@ -54,6 +54,47 @@ extension NSColor {
   }
 }
 
+// MARK: - History Models
+
+struct TranscriptionEntry: Identifiable, Equatable, Hashable {
+  let id = UUID()
+  let text: String
+  let timestamp = Date()
+}
+
+@MainActor
+class HistoryManager: ObservableObject {
+  @Published var entries: [TranscriptionEntry] = []
+  private let settings: AppSettings
+  
+  init(settings: AppSettings) {
+    self.settings = settings
+  }
+  
+  func addEntry(text: String) {
+    let maxEntries = settings.config.maxHistoryEntries
+    
+    guard maxEntries > 0 else { return }
+    
+    let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmedText.isEmpty else { return }
+    
+    entries.insert(TranscriptionEntry(text: text), at: 0)
+    
+    if entries.count > maxEntries {
+      entries.removeLast(entries.count - maxEntries)
+    }
+  }
+  
+  func deleteEntry(id: UUID) {
+    entries.removeAll { $0.id == id }
+  }
+  
+  func clearAll() {
+    entries.removeAll()
+  }
+}
+
 // MARK: - Model Auto-Unload
 
 protocol ModelAutoUnloadDelegate: AnyObject {
@@ -226,6 +267,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   private let MinimumTranscriptionDuration = 1.0
   private var audioLevelTimer: Timer?
   private var autoUnloadManager: ModelAutoUnloadManager!
+  private var historyManager: HistoryManager!
 
   // MARK: - Lifecycle
 
@@ -275,6 +317,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       delegate: self,
       logger: logger
     )
+    historyManager = HistoryManager(settings: settingsManager)
 
     setupMenus()
     setupApplicationMenu()
@@ -868,6 +911,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
             showError("Could not paste text at cursor. The transcription has been copied to clipboard instead. Please paste it manually (⌘V).")
 
         }
+        
+        await MainActor.run {
+          historyManager.addEntry(text: finalText)
+        }
       } else {
           showError("Recording too short (\(String(format: "%.2f", duration))s), copying previous transcript to clipboard: \"\(self.lastTranscript)\"")
         NSPasteboard.general.clearContents()
@@ -936,7 +983,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
   @objc func openPreferences() {
     if preferencesWindow == nil {
-      let preferencesView = PreferencesView(settings: settingsManager)
+      let preferencesView = PreferencesView(settings: settingsManager, historyManager: historyManager)
       let hostingController = NSHostingController(rootView: preferencesView)
 
       let window = NSWindow(

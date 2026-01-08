@@ -25,6 +25,7 @@
 		ED892BFA2EF0B1FA00D395C2 /* PresetEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */; };
 		ED892BFD2EF0B84000D395C2 /* PresetEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BFC2EF0B83E00D395C2 /* PresetEditorMode.swift */; };
 		ED892BFF2EF0B89000D395C2 /* KeyboardShortcutsExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */; };
+		ED8DDA1D2F0FC6F2006FB94D /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED8DDA1C2F0FC6EF006FB94D /* HistoryView.swift */; };
 		EDDD7A5E2EF0147600806A79 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = D7ECCB3B2CB9BD4B00558637 /* KeyboardShortcuts */; };
 /* End PBXBuildFile section */
 
@@ -61,6 +62,7 @@
 		ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetEditorView.swift; sourceTree = "<group>"; };
 		ED892BFC2EF0B83E00D395C2 /* PresetEditorMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetEditorMode.swift; sourceTree = "<group>"; };
 		ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsExtension.swift; sourceTree = "<group>"; };
+		ED8DDA1C2F0FC6EF006FB94D /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -132,6 +134,7 @@
 		ED892BF02EF0B1C700D395C2 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				ED8DDA1C2F0FC6EF006FB94D /* HistoryView.swift */,
 				ED892BF92EF0B1FA00D395C2 /* PresetEditorView.swift */,
 				ED892BF72EF0B1F300D395C2 /* CustomPromptsView.swift */,
 				ED892BF52EF0B1ED00D395C2 /* TranscriptionSettingsView.swift */,
@@ -259,6 +262,7 @@
 				ED892BFD2EF0B84000D395C2 /* PresetEditorMode.swift in Sources */,
 				40F8346B2CA70F3A007DAA65 /* AppDelegate.swift in Sources */,
 				ED892BFF2EF0B89000D395C2 /* KeyboardShortcutsExtension.swift in Sources */,
+				ED8DDA1D2F0FC6F2006FB94D /* HistoryView.swift in Sources */,
 				ED892BFA2EF0B1FA00D395C2 /* PresetEditorView.swift in Sources */,
 				40F8347C2CA71E4E007DAA65 /* main.swift in Sources */,
 				ED892BF22EF0B1DF00D395C2 /* FeedbackView.swift in Sources */,
@@ -424,7 +428,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glyphack.whispertron;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -465,7 +469,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 11.0;
+				MACOSX_DEPLOYMENT_TARGET = 13.5;
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.glyphack.whispertron;
 				PRODUCT_NAME = "$(TARGET_NAME)";

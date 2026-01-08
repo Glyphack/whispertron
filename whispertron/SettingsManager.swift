@@ -109,6 +109,7 @@ struct AppConfiguration: Codable {
     var transcriptionMode: TranscriptionMode = .onlyTranscribe
     var presets: [AIPreset] = []
     var autoUnload: ModelAutoUnloadSettings = ModelAutoUnloadSettings()
+    var maxHistoryEntries: Int = 500
 
     static let defaults = AppConfiguration(
         openAIKey: nil,
@@ -123,7 +124,8 @@ struct AppConfiguration: Codable {
                 modelName: "gpt-4.1"
             )
         ],
-        autoUnload: ModelAutoUnloadSettings()
+        autoUnload: ModelAutoUnloadSettings(),
+        maxHistoryEntries: 500
     )
 }
 
