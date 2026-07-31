@@ -4,31 +4,103 @@ import Combine
 
 // MARK: - 1. Definitions (Enums & Structs)
 
+enum ModelSize: String, CaseIterable {
+    case tiny = "Tiny"
+    case base = "Base"
+    case small = "Small"
+    case medium = "Medium"
+    case large = "Large"
+}
+
 enum ModelInfo: String, CaseIterable, Codable {
-    case largeV3Q5 = "ggml-large-v3-q5_0"
-    case largeV3 = "ggml-large-v3"
-    case mediumQ8 = "ggml-medium-q8_0"
-    case mediumEnglish = "ggml-medium.en"
-    case mediumEnglishQ8 = "ggml-medium.en-q8_0"
-    case smallEnglish = "ggml-small.en"
+    // Tiny
+    case tiny = "ggml-tiny"
+    case tinyEn = "ggml-tiny.en"
+    case tinyQ5 = "ggml-tiny-q5_1"
+    case tinyEnQ5 = "ggml-tiny.en-q5_1"
+    case tinyQ8 = "ggml-tiny-q8_0"
+    case tinyEnQ8 = "ggml-tiny.en-q8_0"
+    // Base
+    case base = "ggml-base"
+    case baseEn = "ggml-base.en"
+    case baseQ5 = "ggml-base-q5_1"
+    case baseEnQ5 = "ggml-base.en-q5_1"
+    case baseQ8 = "ggml-base-q8_0"
+    case baseEnQ8 = "ggml-base.en-q8_0"
+    // Small
     case small = "ggml-small"
+    case smallEnglish = "ggml-small.en"
+    case smallQ5 = "ggml-small-q5_1"
+    case smallEnQ5 = "ggml-small.en-q5_1"
     case smallQ8 = "ggml-small-q8_0"
     case smallEnglishQ8 = "ggml-small.en-q8_0"
-    
+    // Medium
+    case medium = "ggml-medium"
+    case mediumEnglish = "ggml-medium.en"
+    case mediumQ5 = "ggml-medium-q5_0"
+    case mediumEnQ5 = "ggml-medium.en-q5_0"
+    case mediumQ8 = "ggml-medium-q8_0"
+    case mediumEnglishQ8 = "ggml-medium.en-q8_0"
+    // Large
+    case largeV1 = "ggml-large-v1"
+    case largeV2 = "ggml-large-v2"
+    case largeV2Q5 = "ggml-large-v2-q5_0"
+    case largeV2Q8 = "ggml-large-v2-q8_0"
+    case largeV3 = "ggml-large-v3"
+    case largeV3Q5 = "ggml-large-v3-q5_0"
+    case largeV3Turbo = "ggml-large-v3-turbo"
+    case largeV3TurboQ5 = "ggml-large-v3-turbo-q5_0"
+    case largeV3TurboQ8 = "ggml-large-v3-turbo-q8_0"
+
     var displayName: String {
         switch self {
-        case .largeV3Q5: return "Large V3 (Q5)"
-        case .largeV3: return "Large V3"
-        case .mediumQ8: return "Medium (Q8)"
-        case .mediumEnglish: return "Medium (English)"
-        case .mediumEnglishQ8: return "Medium (English, Q8)"
-        case .smallEnglish: return "Small (English)"
+        case .tiny: return "Tiny"
+        case .tinyEn: return "Tiny (English)"
+        case .tinyQ5: return "Tiny (Q5)"
+        case .tinyEnQ5: return "Tiny (English, Q5)"
+        case .tinyQ8: return "Tiny (Q8)"
+        case .tinyEnQ8: return "Tiny (English, Q8)"
+        case .base: return "Base"
+        case .baseEn: return "Base (English)"
+        case .baseQ5: return "Base (Q5)"
+        case .baseEnQ5: return "Base (English, Q5)"
+        case .baseQ8: return "Base (Q8)"
+        case .baseEnQ8: return "Base (English, Q8)"
         case .small: return "Small"
+        case .smallEnglish: return "Small (English)"
+        case .smallQ5: return "Small (Q5)"
+        case .smallEnQ5: return "Small (English, Q5)"
         case .smallQ8: return "Small (Q8)"
         case .smallEnglishQ8: return "Small (English, Q8)"
+        case .medium: return "Medium"
+        case .mediumEnglish: return "Medium (English)"
+        case .mediumQ5: return "Medium (Q5)"
+        case .mediumEnQ5: return "Medium (English, Q5)"
+        case .mediumQ8: return "Medium (Q8)"
+        case .mediumEnglishQ8: return "Medium (English, Q8)"
+        case .largeV1: return "Large V1"
+        case .largeV2: return "Large V2"
+        case .largeV2Q5: return "Large V2 (Q5)"
+        case .largeV2Q8: return "Large V2 (Q8)"
+        case .largeV3: return "Large V3"
+        case .largeV3Q5: return "Large V3 (Q5)"
+        case .largeV3Turbo: return "Large V3 Turbo"
+        case .largeV3TurboQ5: return "Large V3 Turbo (Q5)"
+        case .largeV3TurboQ8: return "Large V3 Turbo (Q8)"
         }
     }
-    
+
+    var size: ModelSize {
+        switch self {
+        case .tiny, .tinyEn, .tinyQ5, .tinyEnQ5, .tinyQ8, .tinyEnQ8: return .tiny
+        case .base, .baseEn, .baseQ5, .baseEnQ5, .baseQ8, .baseEnQ8: return .base
+        case .small, .smallEnglish, .smallQ5, .smallEnQ5, .smallQ8, .smallEnglishQ8: return .small
+        case .medium, .mediumEnglish, .mediumQ5, .mediumEnQ5, .mediumQ8, .mediumEnglishQ8: return .medium
+        case .largeV1, .largeV2, .largeV2Q5, .largeV2Q8, .largeV3, .largeV3Q5,
+             .largeV3Turbo, .largeV3TurboQ5, .largeV3TurboQ8: return .large
+        }
+    }
+
     var isBundled: Bool {
         return self == .smallEnglish
     }
@@ -43,29 +115,6 @@ enum ModelInfo: String, CaseIterable, Codable {
 
     func isAvailable(settings: AppSettings) -> Bool {
         return settings.getModelPath(for: self) != nil
-    }
-}
-
-struct AIPreset: Codable, Identifiable, Equatable {
-    var id: UUID = UUID()
-    var name: String
-    var systemPrompt: String
-    var modelName: String
-    var createdAt: Date = Date()
-    var lastModified: Date = Date()
-}
-
-enum TranscriptionMode: Codable, Equatable, Hashable, CustomStringConvertible {
-    case onlyTranscribe
-    case aiPreset(UUID) // links to AIPreset.id
-
-    var description: String {
-        switch self {
-        case .onlyTranscribe:
-            return "Only Transcribe"
-        case .aiPreset(let id):
-            return "AI Preset (\(id))"
-        }
     }
 }
 
@@ -94,6 +143,18 @@ enum OutputLanguage: String, CaseIterable, Codable {
   }
 }
 
+enum IconVisibilityMode: String, Codable, CaseIterable {
+  case menubar
+  case dock
+
+  var displayName: String {
+    switch self {
+    case .menubar: return "Menubar"
+    case .dock: return "Dock"
+    }
+  }
+}
+
 // MARK: - 2. Configuration Object (The JSON Structure)
 
 struct ModelAutoUnloadSettings: Codable {
@@ -102,31 +163,29 @@ struct ModelAutoUnloadSettings: Codable {
 }
 
 struct AppConfiguration: Codable {
-    var openAIKey: String? = nil
     var currentModel: ModelInfo = .smallEnglish
     var language: OutputLanguage = .auto
     var translateToEnglish: Bool = false
-    var transcriptionMode: TranscriptionMode = .onlyTranscribe
-    var presets: [AIPreset] = []
     var autoUnload: ModelAutoUnloadSettings = ModelAutoUnloadSettings()
     var maxHistoryEntries: Int = 500
+    var iconVisibility: IconVisibilityMode = .menubar
+    static let defaults = AppConfiguration()
 
-    static let defaults = AppConfiguration(
-        openAIKey: nil,
-        currentModel: .smallEnglish,
-        language: .auto,
-        translateToEnglish: false,
-        transcriptionMode: .onlyTranscribe,
-        presets: [
-            AIPreset(
-                name: "Grammar Fix",
-                systemPrompt: "Fix punctuation and grammar issues. Pay attention to the context of words based on the sentence. Keep the tone casual. Only respond with the fixed punctuation.",
-                modelName: "gpt-4.1"
-            )
-        ],
-        autoUnload: ModelAutoUnloadSettings(),
-        maxHistoryEntries: 500
-    )
+    enum CodingKeys: String, CodingKey {
+        case currentModel, language, translateToEnglish, autoUnload, maxHistoryEntries, iconVisibility
+    }
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.currentModel = try c.decodeIfPresent(ModelInfo.self, forKey: .currentModel) ?? .smallEnglish
+        self.language = try c.decodeIfPresent(OutputLanguage.self, forKey: .language) ?? .auto
+        self.translateToEnglish = try c.decodeIfPresent(Bool.self, forKey: .translateToEnglish) ?? false
+        self.autoUnload = try c.decodeIfPresent(ModelAutoUnloadSettings.self, forKey: .autoUnload) ?? ModelAutoUnloadSettings()
+        self.maxHistoryEntries = try c.decodeIfPresent(Int.self, forKey: .maxHistoryEntries) ?? 500
+        self.iconVisibility = try c.decodeIfPresent(IconVisibilityMode.self, forKey: .iconVisibility) ?? .menubar
+    }
 }
 
 // MARK: - 3. The Manager Class
@@ -378,62 +437,6 @@ class AppSettings: ObservableObject {
 
     // MARK: - Settings Management Methods
 
-    /// Sets the transcription mode with validation
-    @MainActor
-    func setTranscriptionMode(_ mode: TranscriptionMode) throws {
-        // Validate that preset exists if using aiPreset mode
-        if case .aiPreset(let presetId) = mode {
-            guard config.presets.contains(where: { $0.id == presetId }) else {
-                throw NSError(
-                    domain: "AppSettings",
-                    code: 1,
-                    userInfo: [NSLocalizedDescriptionKey: "Preset with ID \(presetId) not found"]
-                )
-            }
-        }
-        config.transcriptionMode = mode
-        save()
-        logger.info("Transcription mode updated")
-    }
-
-    /// Returns a preset by ID
-    func preset(for id: UUID) -> AIPreset? {
-        return config.presets.first(where: { $0.id == id })
-    }
-
-    /// Adds a new preset
-    @MainActor
-    func addPreset(_ preset: AIPreset) {
-        config.presets.append(preset)
-        save()
-        logger.info("Preset added: \(preset.name)")
-    }
-
-    /// Updates an existing preset
-    @MainActor
-    func updatePreset(_ preset: AIPreset) {
-        if let index = config.presets.firstIndex(where: { $0.id == preset.id }) {
-            config.presets[index] = preset
-            save()
-            logger.info("Preset updated: \(preset.name)")
-        }
-    }
-
-    /// Deletes a preset by ID
-    @MainActor
-    func deletePreset(id: UUID) {
-        config.presets.removeAll(where: { $0.id == id })
-
-        // If the deleted preset was active, switch to local only
-        if case .aiPreset(let presetId) = config.transcriptionMode, presetId == id {
-            config.transcriptionMode = .onlyTranscribe
-            logger.info("Active preset deleted, switching to local only mode")
-        }
-
-        save()
-        logger.info("Preset deleted")
-    }
-
     @MainActor
     func setOutputLanguage(_ language: OutputLanguage) {
         config.language = language
@@ -446,92 +449,6 @@ class AppSettings: ObservableObject {
         config.translateToEnglish = translate
         save()
         logger.info("Translate to English: \(translate)")
-    }
-
-    // MARK: - Keychain Methods for API Key
-
-    private static let keychainService = "com.glyphack.whispertron"
-    private static let keychainAccount = "openai-api-key"
-
-    /// Checks if an API key exists in the Keychain
-    func hasAPIKey() async -> Bool {
-        return await loadAPIKey() != nil
-    }
-
-    /// Loads the API key from the Keychain
-    func loadAPIKey() async -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: AppSettings.keychainService,
-            kSecAttrAccount as String: AppSettings.keychainAccount,
-            kSecReturnData as String: true
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let key = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-
-        return key
-    }
-
-    /// Saves the API key to the Keychain
-    func saveAPIKey(_ key: String) async throws {
-        // Delete existing key first
-        try? await deleteAPIKey()
-
-        guard let data = key.data(using: .utf8) else {
-            throw NSError(
-                domain: "AppSettings",
-                code: 2,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to encode API key"]
-            )
-        }
-
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: AppSettings.keychainService,
-            kSecAttrAccount as String: AppSettings.keychainAccount,
-            kSecValueData as String: data
-        ]
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-
-        guard status == errSecSuccess else {
-            throw NSError(
-                domain: "AppSettings",
-                code: 3,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to save API key to Keychain (status: \(status))"]
-            )
-        }
-
-        logger.info("API key saved to Keychain")
-    }
-
-    /// Deletes the API key from the Keychain
-    func deleteAPIKey() async throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: AppSettings.keychainService,
-            kSecAttrAccount as String: AppSettings.keychainAccount
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-
-        // Success or item not found are both acceptable
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw NSError(
-                domain: "AppSettings",
-                code: 4,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to delete API key from Keychain (status: \(status))"]
-            )
-        }
-
-        logger.info("API key deleted from Keychain")
     }
 
     // MARK: - Reset Settings

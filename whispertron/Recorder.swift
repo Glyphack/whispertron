@@ -284,3 +284,4 @@ actor Recorder {
     return await whisperContext.getTranscription().trimmingCharacters(in: .whitespaces)
   }
 }
+

@@ -67,8 +67,12 @@ struct TranscriptionSettingsView: View {
       formField(label: "Whisper Model") {
         VStack(alignment: .leading, spacing: 8) {
           Picker("", selection: $settings.config.currentModel) {
-            ForEach(ModelInfo.allCases, id: \.self) { model in
-              Text(modelDisplayTitle(model)).tag(model)
+            ForEach(ModelSize.allCases, id: \.self) { size in
+              Section(header: Text(size.rawValue)) {
+                ForEach(ModelInfo.allCases.filter { $0.size == size }, id: \.self) { model in
+                  Text(modelDisplayTitle(model)).tag(model)
+                }
+              }
             }
           }
           .labelsHidden()
@@ -89,16 +93,6 @@ struct TranscriptionSettingsView: View {
         }
       }
 
-      formField(label: "AI Post-Processing", helpText: "ℹ Uses AI to improve transcription") {
-        Picker("", selection: $settings.config.transcriptionMode) {
-          Text("Local Only").tag(TranscriptionMode.onlyTranscribe)
-          ForEach(settings.config.presets) { preset in
-            Text(preset.name).tag(TranscriptionMode.aiPreset(preset.id))
-          }
-        }
-        .labelsHidden()
-      }
-
       formField(label: "Language") {
         Picker("", selection: $settings.config.language) {
           ForEach(OutputLanguage.allCases, id: \.self) { lang in
@@ -117,7 +111,6 @@ struct TranscriptionSettingsView: View {
         .shadow(color: .black.opacity(0.1), radius: 2, y: 1)
     )
     .onChange(of: settings.config.currentModel) { _ in settings.save() }
-    .onChange(of: settings.config.transcriptionMode) { _ in settings.save() }
     .onChange(of: settings.config.language) { _ in settings.save() }
     .onChange(of: settings.config.translateToEnglish) { _ in settings.save() }
   }

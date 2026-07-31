@@ -238,13 +238,14 @@ class ModelAutoUnloadManager {
 class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate, ModelAutoUnloadDelegate {
   // MARK: - Properties
 
-  private var statusItem: NSStatusItem!
-  private var recordMenuItem: NSMenuItem!
+  private var statusItem: NSStatusItem?
+  private var recordMenuItem: NSMenuItem?
   var whisperContext: WhisperContext?
   var recorder: Recorder?
   private var settingsManager: AppSettings = AppSettings()
-  private var openAIClient: OpenAIClient!
-  private var preferencesWindow: NSWindow?
+  private var mainWindow: NSWindow?
+  let windowState = WindowState()
+  private var isRecording: Bool = false
   private let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "AppDelegate")
   private let standbyImage: NSImage = {
     let image = NSImage(systemSymbolName: "music.mic", accessibilityDescription: "Standby")!
@@ -262,6 +263,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   private let lightFg = NSColor(hex: "333333")
 
   private var feedbackWindow: NSWindow?
+  private var welcomeWindow: NSPanel?
   private var feedbackViewModel: FeedbackViewModel?
   private var lastTranscript = ""
   private let MinimumTranscriptionDuration = 1.0
@@ -270,6 +272,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   private var historyManager: HistoryManager!
 
   // MARK: - Lifecycle
+
+  func applicationWillFinishLaunching(_ notification: Notification) {
+    // Apply icon visibility before Dock decides what to show — avoids first-frame flash.
+    applyIconVisibility(settingsManager.config.iconVisibility, isInitialLaunch: true)
+  }
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
     NotificationCenter.default.addObserver(
@@ -307,11 +314,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
     setupFeedbackWindow()
 
-    statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    statusItem.button?.image = standbyImage
-
-    settingsManager = AppSettings()
-    openAIClient = OpenAIClient(settingsManager: settingsManager)
     autoUnloadManager = ModelAutoUnloadManager(
       settings: settingsManager,
       delegate: self,
@@ -319,8 +321,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     )
     historyManager = HistoryManager(settings: settingsManager)
 
-    setupMenus()
     setupApplicationMenu()
+
+    if !UserDefaults.standard.bool(forKey: "hasShownWelcome") {
+      showWelcome()
+      UserDefaults.standard.set(true, forKey: "hasShownWelcome")
+    }
 
     Task {
       do {
@@ -338,6 +344,76 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         logger.error("Error creating Whisper context: \(error.localizedDescription)")
       }
     }
+  }
+
+  // MARK: - Icon Visibility
+
+  func applyIconVisibility(_ mode: IconVisibilityMode, isInitialLaunch: Bool = false) {
+    switch mode {
+    case .menubar:
+      if statusItem == nil {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        item.button?.image = isRecording ? recordingImage : standbyImage
+        statusItem = item
+        setupMenus()
+      }
+      NSApp.setActivationPolicy(.accessory)
+
+    case .dock:
+      if let item = statusItem {
+        NSStatusBar.system.removeStatusItem(item)
+        statusItem = nil
+        recordMenuItem = nil
+      }
+      NSApp.setActivationPolicy(.regular)
+      if !isInitialLaunch {
+        DispatchQueue.main.async {
+          NSApp.activate(ignoringOtherApps: true)
+        }
+      }
+    }
+  }
+
+  // MARK: - Dock Integration
+
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+    if !flag {
+      openMainWindow(initialTab: windowState.selectedTab)
+    }
+    return true
+  }
+
+  func applicationDockMenu(_ sender: NSApplication) -> NSMenu? {
+    let menu = NSMenu()
+    menu.addItem(NSMenuItem(title: "Show Window", action: #selector(showMainWindowFromDock), keyEquivalent: ""))
+    return menu
+  }
+
+  @objc private func showMainWindowFromDock() {
+    openMainWindow(initialTab: windowState.selectedTab)
+  }
+
+  @objc func showWelcome() {
+    if welcomeWindow == nil {
+      let panel = NSPanel(
+        contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
+        styleMask: [.titled, .closable],
+        backing: .buffered,
+        defer: false
+      )
+      panel.title = "Welcome to Whispertron"
+      panel.isFloatingPanel = true
+      panel.level = .floating
+      panel.isReleasedWhenClosed = false
+
+      let view = WelcomeView {
+        panel.close()
+      }
+      panel.contentViewController = NSHostingController(rootView: view)
+      welcomeWindow = panel
+    }
+    welcomeWindow?.center()
+    welcomeWindow?.makeKeyAndOrderFront(nil)
   }
 
   // MARK: - Accessibility
@@ -555,29 +631,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   // MARK: - Menu Management
 
   func setupMenus() {
+    guard let statusItem = statusItem else { return }
+
     let menu = NSMenu()
     menu.delegate = self
 
     menu.addItem(NSMenuItem.separator())
 
-    // Add Preferences menu item
     let preferences = NSMenuItem(title: "Preferences...", action: #selector(openPreferences), keyEquivalent: ",")
     menu.addItem(preferences)
 
-    menu.addItem(NSMenuItem.separator())
-
-    // Add Transcription Mode submenu
-    let transcriptionModeMenuItem = NSMenuItem(title: "Transcription Mode", action: nil, keyEquivalent: "")
-    let transcriptionModeSubmenu = NSMenu()
-    transcriptionModeMenuItem.submenu = transcriptionModeSubmenu
-    menu.addItem(transcriptionModeMenuItem)
+    let gettingStarted = NSMenuItem(title: "Getting Started", action: #selector(showWelcome), keyEquivalent: "")
+    menu.addItem(gettingStarted)
 
     menu.addItem(NSMenuItem.separator())
 
-    // Add Models submenu
     let modelsMenuItem = NSMenuItem(title: "Models", action: nil, keyEquivalent: "")
     let modelsSubmenu = NSMenu()
-
     for model in ModelInfo.allCases {
       let modelItem = NSMenuItem(
         title: model.displayName,
@@ -587,7 +657,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       modelItem.representedObject = model
       modelsSubmenu.addItem(modelItem)
     }
-
     modelsMenuItem.submenu = modelsSubmenu
     menu.addItem(modelsMenuItem)
 
@@ -595,7 +664,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
     let languageMenuItem = NSMenuItem(title: "Language", action: nil, keyEquivalent: "")
     let languageSubmenu = NSMenu()
-
     for language in OutputLanguage.allCases {
       let languageItem = NSMenuItem(
         title: language.displayName,
@@ -605,39 +673,40 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       languageItem.representedObject = language
       languageSubmenu.addItem(languageItem)
     }
-
     languageMenuItem.submenu = languageSubmenu
     menu.addItem(languageMenuItem)
 
-    // Add Translate to English toggle
     let translateItem = NSMenuItem(
       title: "Translate to English",
       action: #selector(toggleTranslateToEnglish(_:)),
       keyEquivalent: ""
     )
-    let translateSetting = settingsManager.config.translateToEnglish
-    translateItem.state = translateSetting ? .on : .off
+    translateItem.state = settingsManager.config.translateToEnglish ? .on : .off
     menu.addItem(translateItem)
 
     menu.addItem(NSMenuItem.separator())
 
-    recordMenuItem = NSMenuItem(title: "Record", action: #selector(didTapRecord), keyEquivalent: "")
-    menu.addItem(recordMenuItem)
+    let historyItem = NSMenuItem(title: "History", action: #selector(openHistory), keyEquivalent: "")
+    menu.addItem(historyItem)
+
+    menu.addItem(NSMenuItem.separator())
+
+    let record = NSMenuItem(title: isRecording ? "Stop Recording" : "Record", action: #selector(didTapRecord), keyEquivalent: "")
+    recordMenuItem = record
+    menu.addItem(record)
 
     menu.addItem(NSMenuItem.separator())
 
     menu.addItem(
       NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
-      
-      let about = NSMenuItem(title: "About", action: #selector(openAbout), keyEquivalent: "")
-      menu.addItem(about)
+
+    let about = NSMenuItem(title: "About", action: #selector(openAbout), keyEquivalent: "")
+    menu.addItem(about)
 
     statusItem.menu = menu
 
-    // Update menu to reflect current model, language, and transcription mode
     updateModelMenuSelection()
     updateLanguageMenuSelection()
-    updateTranscriptionModeSelection()
   }
 
   func setupApplicationMenu() {
@@ -648,9 +717,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     let appMenu = NSMenu()
     appMenu.addItem(NSMenuItem(title: "About Whispertron", action: #selector(openAbout), keyEquivalent: ""))
     appMenu.addItem(NSMenuItem.separator())
-    appMenu.addItem(NSMenuItem(title: "Preferences...", action: #selector(openPreferences), keyEquivalent: ","))
+    appMenu.addItem(NSMenuItem(title: "Settings...", action: #selector(openPreferences), keyEquivalent: ","))
     appMenu.addItem(NSMenuItem.separator())
     appMenu.addItem(NSMenuItem(title: "Hide Whispertron", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h"))
+    let hideOthers = NSMenuItem(title: "Hide Others", action: #selector(NSApplication.hideOtherApplications(_:)), keyEquivalent: "h")
+    hideOthers.keyEquivalentModifierMask = [.command, .option]
+    appMenu.addItem(hideOthers)
+    appMenu.addItem(NSMenuItem(title: "Show All", action: #selector(NSApplication.unhideAllApplications(_:)), keyEquivalent: ""))
+    appMenu.addItem(NSMenuItem.separator())
     appMenu.addItem(NSMenuItem(title: "Quit Whispertron", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
     appMenuItem.submenu = appMenu
     mainMenu.addItem(appMenuItem)
@@ -658,6 +732,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     // Edit Menu with First Responder pattern
     let editMenuItem = NSMenuItem()
     let editMenu = NSMenu(title: "Edit")
+    editMenu.addItem(NSMenuItem(title: "Undo", action: Selector(("undo:")), keyEquivalent: "z"))
+    let redo = NSMenuItem(title: "Redo", action: Selector(("redo:")), keyEquivalent: "z")
+    redo.keyEquivalentModifierMask = [.command, .shift]
+    editMenu.addItem(redo)
+    editMenu.addItem(NSMenuItem.separator())
     editMenu.addItem(NSMenuItem(title: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x"))
     editMenu.addItem(NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c"))
     editMenu.addItem(NSMenuItem(title: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v"))
@@ -666,6 +745,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     editMenu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a"))
     editMenuItem.submenu = editMenu
     mainMenu.addItem(editMenuItem)
+
+    // View Menu (Recording shortcut for dock mode discoverability)
+    let viewMenuItem = NSMenuItem()
+    let viewMenu = NSMenu(title: "View")
+    viewMenu.addItem(NSMenuItem(title: "Record", action: #selector(didTapRecord), keyEquivalent: ""))
+    viewMenuItem.submenu = viewMenu
+    mainMenu.addItem(viewMenuItem)
+
+    // Window Menu
+    let windowMenuItem = NSMenuItem()
+    let windowMenu = NSMenu(title: "Window")
+    windowMenu.addItem(NSMenuItem(title: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m"))
+    windowMenu.addItem(NSMenuItem(title: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: ""))
+    windowMenu.addItem(NSMenuItem.separator())
+    windowMenu.addItem(NSMenuItem(title: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: ""))
+    windowMenuItem.submenu = windowMenu
+    NSApp.windowsMenu = windowMenu
+    mainMenu.addItem(windowMenuItem)
 
     NSApp.mainMenu = mainMenu
   }
@@ -678,7 +775,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   }
 
   private func updateModelMenuSelection() {
-    guard let menu = statusItem.menu,
+    guard let menu = statusItem?.menu,
           let modelsMenuItem = menu.item(withTitle: "Models"),
           let modelsSubmenu = modelsMenuItem.submenu else {
       return
@@ -709,7 +806,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   }
 
   private func updateLanguageMenuSelection() {
-    guard let menu = statusItem.menu,
+    guard let menu = statusItem?.menu,
           let languageMenuItem = menu.item(withTitle: "Language"),
           let languageSubmenu = languageMenuItem.submenu else {
       return
@@ -887,8 +984,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   @objc func Transcribe() {
     logger.debug("didTapStandby")
     showFeedback(.transcribing)
-    statusItem.button?.image = standbyImage
-    statusItem.button?.cell?.isHighlighted = false
+    isRecording = false
+    statusItem?.button?.image = standbyImage
+    statusItem?.button?.cell?.isHighlighted = false
+    recordMenuItem?.title = "Record"
 
     Task {
       await recorder!.stopRecording()
@@ -901,7 +1000,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         let transcript = await recorder!.transcribe(language: outputLang.whisperLanguageCode, translate: translate)
         logger.info("Transcription completed: \"\(transcript)\"")
 
-        let finalText = await processTranscript(transcript)
+        let finalText = transcript
 
         logger.info("Inserting text into cursor position: \"\(finalText)\"")
         let insertionSucceeded = await self.insertStringAtCursor(finalText)
@@ -911,7 +1010,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
             showError("Could not paste text at cursor. The transcription has been copied to clipboard instead. Please paste it manually (⌘V).")
 
         }
-        
+
         await MainActor.run {
           historyManager.addEntry(text: finalText)
         }
@@ -921,38 +1020,31 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         NSPasteboard.general.setString(self.lastTranscript, forType: .string)
       }
 
-      await MainActor.run {
-        self.recordMenuItem.title = "Record"
-      }
       await autoUnloadManager.scheduleUnload()
       showFeedback(nil)
     }
   }
 
   @objc func startRecording() {
-    statusItem.button?.image = recordingImage
-    statusItem.button?.appearsDisabled = false
-    statusItem.button?.cell?.isHighlighted = true
+    isRecording = true
+    statusItem?.button?.image = recordingImage
+    statusItem?.button?.appearsDisabled = false
+    statusItem?.button?.cell?.isHighlighted = true
+    recordMenuItem?.title = "Stop Recording"
 
     Task {
       do {
-        // Ensure model is loaded before starting recording
-        // This will show .loading feedback if model needs to be loaded
         try await autoUnloadManager.ensureModelLoaded(
           getCurrentModelPath: { self.settingsManager.getCurrentModelPath() },
           createContext: { path in try WhisperContext.createContext(path: path) },
           createRecorder: { context in try await Recorder(whisperContext: context) }
         )
 
-        // After model is loaded, show recording feedback and start recording
         await MainActor.run {
           showFeedback(.recording)
         }
 
         try await recorder?.startRecording()
-        await MainActor.run {
-          recordMenuItem.title = "Stop Recording"
-        }
       } catch {
         logger.error("Error starting recording: \(error.localizedDescription)")
 
@@ -963,57 +1055,78 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         alert.addButton(withTitle: "OK")
         alert.runModal()
 
-        // Reset UI
-        statusItem.button?.image = standbyImage
-        statusItem.button?.cell?.isHighlighted = false
+        isRecording = false
+        statusItem?.button?.image = standbyImage
+        statusItem?.button?.cell?.isHighlighted = false
+        recordMenuItem?.title = "Record"
         showFeedback(nil)
       }
     }
   }
 
   @objc func didTapRecord() {
-    if recordMenuItem.title == "Stop Recording" {
+    if isRecording {
       Transcribe()
     } else {
       startRecording()
     }
   }
 
-  // MARK: - Preferences
+  // MARK: - Main Window
+
+  @objc func openHistory() {
+    openMainWindow(initialTab: .history)
+  }
 
   @objc func openPreferences() {
-    if preferencesWindow == nil {
-      let preferencesView = PreferencesView(settings: settingsManager, historyManager: historyManager)
-      let hostingController = NSHostingController(rootView: preferencesView)
+    openMainWindow(initialTab: .general)
+  }
+
+  func openMainWindow(initialTab: MainTab) {
+    if mainWindow == nil {
+      let view = MainView(
+        state: windowState,
+        settings: settingsManager,
+        historyManager: historyManager,
+        onIconVisibilityChange: { [weak self] mode in
+          self?.applyIconVisibility(mode)
+        }
+      )
+      let hostingController = NSHostingController(rootView: view)
 
       let window = NSWindow(
-        contentRect: NSRect(x: 0, y: 0, width: 800, height: 550),
-        styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+        contentRect: NSRect(x: 0, y: 0, width: 800, height: 620),
+        styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],
         backing: .buffered,
         defer: false
       )
-      window.title = "Preferences"
+      window.title = "Whispertron"
       window.contentViewController = hostingController
       window.delegate = self
       window.isReleasedWhenClosed = false
+      window.contentMinSize = NSSize(width: 720, height: 560)
+      window.identifier = NSUserInterfaceItemIdentifier("MainWindow")
+      window.setContentSize(NSSize(width: 800, height: 620))
+      window.center()
 
-      preferencesWindow = window
+      mainWindow = window
     }
 
-    // Center window every time it's opened
-    preferencesWindow?.center()
+    windowState.selectedTab = initialTab
 
-    // Activate app and make window key to enable paste operations
-    NSApp.setActivationPolicy(.regular)
+    if settingsManager.config.iconVisibility == .menubar {
+      NSApp.setActivationPolicy(.regular)
+    }
     NSApp.activate(ignoringOtherApps: true)
-    preferencesWindow?.makeKeyAndOrderFront(nil)
+    mainWindow?.makeKeyAndOrderFront(nil)
   }
 
   func windowWillClose(_ notification: Notification) {
-    guard let window = notification.object as? NSWindow,
-          window == preferencesWindow else { return }
+    guard let window = notification.object as? NSWindow, window == mainWindow else { return }
 
-    NSApp.setActivationPolicy(.accessory)
+    if settingsManager.config.iconVisibility == .menubar {
+      NSApp.setActivationPolicy(.accessory)
+    }
     NotificationCenter.default.post(name: NSNotification.Name("RefreshMenuBar"), object: nil)
   }
 
@@ -1021,160 +1134,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     // Refresh all menu items when preferences change
     updateModelMenuSelection()
     updateLanguageMenuSelection()
-    updateTranscriptionModeSelection()
   }
 
-  // MARK: - Transcription Mode
-
-  private func updateTranscriptionModeSelection() {
-    guard let menu = statusItem.menu,
-          let transcriptionModeMenuItem = menu.item(withTitle: "Transcription Mode"),
-          let transcriptionModeSubmenu = transcriptionModeMenuItem.submenu else {
-      return
-    }
-
-    Task {
-      let currentMode = settingsManager.config.transcriptionMode
-      let presets = settingsManager.config.presets
-      await updateTranscriptionModeMenu(transcriptionModeSubmenu, currentMode: currentMode, presets: presets)
-    }
-  }
-
-  @MainActor
-  private func updateTranscriptionModeMenu(
-    _ submenu: NSMenu,
-    currentMode: TranscriptionMode,
-    presets: [AIPreset]
-  ) {
-    // Clear existing items
-    submenu.removeAllItems()
-
-    // Add "Local Only" option
-    let localOnlyItem = NSMenuItem(
-      title: "Local Only",
-      action: #selector(didSelectTranscriptionMode(_:)),
-      keyEquivalent: ""
-    )
-    localOnlyItem.representedObject = TranscriptionMode.onlyTranscribe
-    localOnlyItem.state = currentMode == .onlyTranscribe ? .on : .off
-    submenu.addItem(localOnlyItem)
-
-    if !presets.isEmpty {
-      submenu.addItem(NSMenuItem.separator())
-
-      // Add AI presets
-      for preset in presets {
-        let presetItem = NSMenuItem(
-          title: preset.name,
-          action: #selector(didSelectTranscriptionMode(_:)),
-          keyEquivalent: ""
-        )
-        presetItem.representedObject = TranscriptionMode.aiPreset(preset.id)
-
-        // Check if this preset is the current mode
-        if case .aiPreset(let currentPresetId) = currentMode, currentPresetId == preset.id {
-          presetItem.state = .on
-        } else {
-          presetItem.state = .off
-        }
-
-        submenu.addItem(presetItem)
-      }
-    }
-  }
-
-  @objc func didSelectTranscriptionMode(_ sender: NSMenuItem) {
-    guard let mode = sender.representedObject as? TranscriptionMode else {
-      return
-    }
-
-    Task {
-      do {
-        try await MainActor.run {
-          try settingsManager.setTranscriptionMode(mode)
-        }
-        await MainActor.run {
-          self.updateTranscriptionModeSelection()
-        }
-        logger.info("Transcription mode changed to: \(mode)")
-      } catch {
-        await MainActor.run {
-          self.showAlert(
-            title: "Error",
-            message: "Failed to set transcription mode: \(error.localizedDescription)"
-          )
-        }
-      }
-    }
-  }
-
-  // MARK: - OpenAI Processing
-
-  private func processTranscript(_ transcript: String) async -> String {
-    let currentMode = settingsManager.config.transcriptionMode
-
-    // If local only mode, return transcript as-is
-    guard case .aiPreset(let presetId) = currentMode else {
-      return transcript
-    }
-
-    // Get the preset
-    guard let preset = settingsManager.preset(for: presetId) else {
-      logger.error("Preset not found: \(presetId)")
-      await MainActor.run {
-        self.showAlert(
-          title: "Preset Not Found",
-          message: "The selected AI preset could not be found. Switching to Local Only mode."
-        )
-      }
-      // Fall back to local only
-      try? await MainActor.run {
-        try settingsManager.setTranscriptionMode(.onlyTranscribe)
-      }
-      return transcript
-    }
-
-    // Check if API key is configured
-    guard await settingsManager.hasAPIKey() else {
-      logger.error("No API key configured")
-      await MainActor.run {
-        self.showAlert(
-          title: "API Key Required",
-          message: "Please configure your OpenAI API key in Preferences to use AI presets."
-        )
-      }
-      return transcript
-    }
-
-    // Show processing feedback
-    await MainActor.run {
-      self.showFeedback(.transcribing)
-    }
-
-    do {
-      logger.info("Processing transcript with OpenAI preset: \(preset.name)")
-      let processedText = try await openAIClient.processText(
-        transcript: transcript,
-        systemPrompt: preset.systemPrompt,
-        model: preset.modelName
-      )
-      logger.info("OpenAI processing completed successfully")
-      return processedText
-    } catch {
-      logger.error("OpenAI processing failed: \(error.localizedDescription)")
-      await MainActor.run {
-        self.handleOpenAIError(error)
-      }
-      // Return original transcript on error
-      return transcript
-    }
-  }
-
-  private func handleOpenAIError(_ error: Error) {
-    if let openAIError = error as? OpenAIError {
-      showAlert(title: "OpenAI Error", message: openAIError.localizedDescription)
-    } else {
-      showAlert(title: "Error", message: error.localizedDescription)
-    }
-  }
 }

@@ -18,12 +18,19 @@ actor WhisperContext {
   }
 
   func fullTranscribe(samples: [Float], language: String?, translate: Bool) {
-    // Leave 2 processors free (i.e. the high-efficiency cores).
+    // Pad short audio to at least 1s to prevent crashes
+    var paddedSamples = samples
+    if paddedSamples.count < 16000 {
+      paddedSamples.append(contentsOf: [Float](repeating: 0, count: 16000 - paddedSamples.count))
+    }
+    // Append 0.5s silence to avoid trimming the tail
+    paddedSamples.append(contentsOf: [Float](repeating: 0, count: 8000))
+
     let maxThreads = max(1, min(8, cpuCount() - 2))
     print("Selecting \(maxThreads) threads")
-    var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
+    var params = whisper_full_default_params(WHISPER_SAMPLING_BEAM_SEARCH)
+    params.beam_search.beam_size = 5
 
-    // Adapted from whisper.objc
     params.print_realtime = true
     params.print_progress = false
     params.print_timestamps = false
@@ -33,37 +40,35 @@ actor WhisperContext {
     params.n_threads = Int32(maxThreads)
     params.offset_ms = 0
     params.no_context = true
-    params.single_segment = false
+    params.single_segment = true
+    params.max_tokens = 0
+    params.entropy_thold = 3.0
+    params.suppress_blank = true
+    params.suppress_nst = true
+    params.no_speech_thold = 0.6
 
-    // Set language: nil for auto-detect, or specific language code
-    if let language = language {
-      print("Using language: \(language), translate: \(translate)")
-      language.withCString { languagePtr in
-        params.language = languagePtr
-
-        whisper_reset_timings(context)
-        print("About to run whisper_full")
-        samples.withUnsafeBufferPointer { samples in
-          if whisper_full(context, params, samples.baseAddress, Int32(samples.count)) != 0 {
-            print("Failed to run the model")
-          } else {
-            whisper_print_timings(context)
-          }
-        }
-      }
-    } else {
-      params.language = nil  // Auto-detect language
-      print("Using auto-detect language, translate: \(translate)")
-
+    let runWhisper = { [context] in
       whisper_reset_timings(context)
       print("About to run whisper_full")
-      samples.withUnsafeBufferPointer { samples in
-        if whisper_full(context, params, samples.baseAddress, Int32(samples.count)) != 0 {
+      paddedSamples.withUnsafeBufferPointer { buf in
+        if whisper_full(context, params, buf.baseAddress, Int32(buf.count)) != 0 {
           print("Failed to run the model")
         } else {
           whisper_print_timings(context)
         }
       }
+    }
+
+    if let language = language {
+      print("Using language: \(language), translate: \(translate)")
+      language.withCString { languagePtr in
+        params.language = languagePtr
+        runWhisper()
+      }
+    } else {
+      params.language = nil
+      print("Using auto-detect language, translate: \(translate)")
+      runWhisper()
     }
   }
 
