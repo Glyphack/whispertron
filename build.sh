@@ -18,12 +18,16 @@ else
     curl -L -o "$FILE_PATH" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$MODEL.bin?download=true"
 fi
 
-FILE_PATH="whisper-v1.7.5-xcframework.zip"
-if [ -f "$FILE_PATH" ]; then
+WHISPER_VERSION="v1.9.2"
+
+FILE_PATH="whisper-$WHISPER_VERSION-xcframework.zip"
+if [ -f "$FILE_PATH" ] && [ -d whisper_xcframework ]; then
     echo "Whisper framework already downloaded."
 else
-    curl -L -o "$FILE_PATH" "https://github.com/ggml-org/whisper.cpp/releases/download/v1.7.5/whisper-v1.7.5-xcframework.zip"
-    unzip -d whisper_xcframework whisper-v1.7.5-xcframework.zip
+    echo "Downloading whisper framework: $WHISPER_VERSION"
+    curl -L -o "$FILE_PATH" "https://github.com/ggml-org/whisper.cpp/releases/download/$WHISPER_VERSION/$FILE_PATH"
+    rm -rf whisper_xcframework
+    unzip -q -d whisper_xcframework "$FILE_PATH"
 fi
 
 xcodebuild -project whispertron.xcodeproj -scheme whispertron -configuration Release build ARCHS=arm64
