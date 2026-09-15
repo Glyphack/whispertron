@@ -21,24 +21,30 @@ jobs:
           APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -type d -name "whispertron.app" | head -n1)
           echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
       - name: Package build artifact
+        id: package
         run: |
           APP_PATH="${{ steps.find_app.outputs.app_path }}"
-          APP_DIR=$(dirname "$APP_PATH")
-          APP_NAME=$(basename "$APP_PATH")
-          cd "$APP_DIR"
-          zip -r whispertron.zip "$APP_NAME"
-          mv whispertron.zip "$GITHUB_WORKSPACE"
+          VERSION="${GITHUB_REF_NAME#v}"
+          ZIP_NAME="whispertron-$VERSION-macos-arm64.zip"
+          STAGE="$RUNNER_TEMP/stage"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/bin"
+          ditto "$APP_PATH" "$STAGE/whispertron.app"
+          printf '#!/bin/sh\nexec open "$(cd "$(dirname "$0")/.." && pwd)/whispertron.app"\n' > "$STAGE/bin/whispertron"
+          chmod +x "$STAGE/bin/whispertron"
+          (cd "$STAGE" && zip -qry "$GITHUB_WORKSPACE/$ZIP_NAME" .)
+          echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: whispertron
-          path: whispertron.zip
+          path: ${{ steps.package.outputs.zip_name }}
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: whispertron.zip
+          files: ${{ steps.package.outputs.zip_name }}
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           body: 'Automated release of whispertron'

@@ -265,7 +265,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   private var feedbackWindow: NSWindow?
   private var welcomeWindow: NSPanel?
   private var feedbackViewModel: FeedbackViewModel?
-  private var lastTranscript = ""
   private let MinimumTranscriptionDuration = 1.0
   private var audioLevelTimer: Timer?
   private var autoUnloadManager: ModelAutoUnloadManager!
@@ -524,17 +523,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
   @MainActor
   func setupFeedbackWindow() {
-    feedbackWindow = NSWindow(
+    let panel = NSPanel(
       contentRect: NSRect(x: 0, y: 0, width: windowSize, height: windowSize),
-      styleMask: [.borderless],
+      styleMask: [.borderless, .nonactivatingPanel],
       backing: .buffered,
       defer: false)
 
-    feedbackWindow?.level = .floating
-    feedbackWindow?.isOpaque = false
-    feedbackWindow?.backgroundColor = NSColor.clear
-    feedbackWindow?.hasShadow = false
-    feedbackWindow?.ignoresMouseEvents = true
+    panel.isFloatingPanel = true
+    panel.level = .statusBar
+    panel.isOpaque = false
+    panel.backgroundColor = NSColor.clear
+    panel.hasShadow = false
+    panel.ignoresMouseEvents = true
+    panel.canHide = false
+    panel.hidesOnDeactivate = false
+    panel.isReleasedWhenClosed = false
+    panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
+
+    feedbackWindow = panel
 
     // Create SwiftUI view with observable state
     feedbackViewModel = FeedbackViewModel()
@@ -548,7 +554,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       guard let viewModel = self.feedbackViewModel else { return }
 
       if let state = state {
-        if let screen = NSScreen.main {
+        if let screen = NSScreen.main ?? NSScreen.screens.first {
           let screenFrame = screen.visibleFrame
           let centerX = screenFrame.midX - (windowSize / 2)
           let centerY: CGFloat = 140.0
@@ -581,7 +587,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
           self.stopAudioLevelPulsing()
         }
 
-        self.feedbackWindow?.makeKeyAndOrderFront(nil)
+        self.feedbackWindow?.orderFrontRegardless()
       } else {
         // Reset timer when closing
         viewModel.recordingStartTime = nil
@@ -1015,9 +1021,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
           historyManager.addEntry(text: finalText)
         }
       } else {
-          showError("Recording too short (\(String(format: "%.2f", duration))s), copying previous transcript to clipboard: \"\(self.lastTranscript)\"")
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(self.lastTranscript, forType: .string)
+        logger.info("Recording too short (\(String(format: "%.2f", duration))s), ignoring")
       }
 
       await autoUnloadManager.scheduleUnload()
