@@ -182,7 +182,6 @@ class ModelAutoUnloadManager {
       delegate.recorder = try await createRecorder(context)
 
       logger.info("Model reloaded successfully")
-      delegate.showFeedback(nil)
 
       // Automatically schedule unload after model is loaded
       scheduleUnload()
