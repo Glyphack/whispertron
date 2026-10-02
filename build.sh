@@ -18,7 +18,7 @@ else
     curl -L -o "$FILE_PATH" "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/$MODEL.bin?download=true"
 fi
 
-WHISPER_VERSION="v1.9.2"
+WHISPER_VERSION="b5130"
 
 FILE_PATH="whisper-$WHISPER_VERSION-xcframework.zip"
 if [ -f "$FILE_PATH" ] && [ -d whisper_xcframework ]; then

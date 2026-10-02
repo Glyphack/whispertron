@@ -1,10 +1,8 @@
-import AVFoundation
 import ApplicationServices
 @preconcurrency import AppKit
 @preconcurrency import Cocoa
 import CoreGraphics
 import Foundation
-import HotKey
 import KeyboardShortcuts
 import SwiftUI
 import os
@@ -22,36 +20,7 @@ class FeedbackViewModel: ObservableObject {
   @Published var audioLevel: Float = 0
   @Published var recordingStartTime: Date? = nil
   @Published var recordingDuration: TimeInterval = 0
-}
-
-extension NSColor {
-  convenience init(hex: String) {
-    let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-    var int: UInt64 = 0
-    Scanner(string: hex).scanHexInt64(&int)
-    let a, r, g, b: UInt64
-    switch hex.count {
-    case 3: // RGB (12-bit)
-      (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-    case 6: // RGB (24-bit)
-      (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-    case 8: // ARGB (32-bit)
-      (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-    default:
-      (a, r, g, b) = (1, 1, 1, 0)
-    }
-    
-    self.init(
-      red: CGFloat(r) / 255,
-      green: CGFloat(g) / 255,
-      blue: CGFloat(b) / 255,
-      alpha: CGFloat(a) / 255
-    )
-  }
-  
-  static var isDarkMode: Bool {
-    return NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-  }
+  @Published var liveText = ""
 }
 
 // MARK: - History Models
@@ -95,152 +64,16 @@ class HistoryManager: ObservableObject {
   }
 }
 
-// MARK: - Model Auto-Unload
-
-protocol ModelAutoUnloadDelegate: AnyObject {
-  var whisperContext: WhisperContext? { get set }
-  var recorder: Recorder? { get set }
-  func showFeedback(_ state: FeedbackState?)
-  func showError(_ message: String)
-}
-
-@MainActor
-class ModelAutoUnloadManager {
-  // MARK: - Properties
-  private var timer: Timer?
-  private var lastTranscriptionTime: Date?
-  private var isReloading = false
-
-  private weak var delegate: ModelAutoUnloadDelegate?
-  private let settings: AppSettings
-  private let logger: Logger
-
-  private var config: ModelAutoUnloadSettings {
-    settings.config.autoUnload
-  }
-
-  private var isModelLoaded: Bool {
-    delegate?.whisperContext != nil
-  }
-
-  // MARK: - Initialization
-  init(settings: AppSettings, delegate: ModelAutoUnloadDelegate, logger: Logger) {
-    self.settings = settings
-    self.delegate = delegate
-    self.logger = logger
-  }
-
-  // MARK: - Public Methods
-
-  func scheduleUnload() {
-    // Cancel any existing timer
-    timer?.invalidate()
-    timer = nil
-
-    guard config.enabled else { return }
-    guard isModelLoaded else { return }
-
-    lastTranscriptionTime = Date()
-    let timeoutSeconds = TimeInterval(config.timeoutMinutes * 60)
-
-    logger.info("Scheduling model unload in \(timeoutSeconds) seconds")
-
-    timer = Timer.scheduledTimer(withTimeInterval: timeoutSeconds, repeats: false) { [weak self] _ in
-      guard let self = self else { return }
-      Task { @MainActor in
-        await self.unloadIfIdle()
-      }
-    }
-  }
-
-  func ensureModelLoaded(
-    getCurrentModelPath: () -> String,
-    createContext: (String) throws -> WhisperContext,
-    createRecorder: (WhisperContext) async throws -> Recorder
-  ) async throws {
-    guard let delegate = delegate else { return }
-    guard !isModelLoaded else { return }
-
-    guard !isReloading else {
-      throw NSError(
-        domain: "ModelAutoUnload",
-        code: 1,
-        userInfo: [NSLocalizedDescriptionKey: "Model reload already in progress"]
-      )
-    }
-
-    isReloading = true
-    defer { isReloading = false }
-
-    logger.info("Reloading model...")
-    delegate.showFeedback(.loading)
-
-    do {
-      let modelPath = getCurrentModelPath()
-      let context = try createContext(modelPath)
-      delegate.whisperContext = context
-      delegate.recorder = try await createRecorder(context)
-
-      logger.info("Model reloaded successfully")
-
-      // Automatically schedule unload after model is loaded
-      scheduleUnload()
-    } catch {
-      logger.error("Failed to reload model: \(error.localizedDescription)")
-      delegate.showFeedback(nil)
-      throw error
-    }
-  }
-
-  func handleSleep() {
-    logger.info("System going to sleep - cancelling model unload timer")
-    timer?.invalidate()
-    timer = nil
-  }
-
-  func handleWake() {
-    logger.info("System woke up - rescheduling model unload")
-    scheduleUnload()
-  }
-
-  // MARK: - Private Methods
-
-  private func unloadIfIdle() async {
-    guard let delegate = delegate else { return }
-    guard let lastTranscription = lastTranscriptionTime else { return }
-
-    let timeoutSeconds = TimeInterval(config.timeoutMinutes * 60)
-    let elapsed = Date().timeIntervalSince(lastTranscription)
-
-    guard elapsed >= timeoutSeconds else {
-      logger.info("Model unload cancelled - activity detected")
-      return
-    }
-
-    // Don't unload if currently recording
-    if await delegate.recorder?.getIsRecording() == true {
-      logger.info("Model unload skipped - recording in progress")
-      scheduleUnload() // Reschedule
-      return
-    }
-
-    logger.info("Unloading model after \(Int(elapsed)) seconds of inactivity")
-
-    // Unload model - deinit will automatically call whisper_free()
-    delegate.whisperContext = nil
-    delegate.recorder = nil
-
-    logger.info("Model unloaded successfully")
-  }
-}
-
-class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate, ModelAutoUnloadDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
   // MARK: - Properties
 
   private var statusItem: NSStatusItem?
   private var recordMenuItem: NSMenuItem?
-  var whisperContext: WhisperContext?
-  var recorder: Recorder?
+  private var whisperContext: WhisperContext?
+  private var recorder: Recorder?
+  private var modelLoad: Task<WhisperContext, Error>?
+  private var unloadTimer: Timer?
+  private var previewTask: Task<Void, Never>?
   private var settingsManager: AppSettings = AppSettings()
   private var mainWindow: NSWindow?
   let windowState = WindowState()
@@ -258,15 +91,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   }()
 
   private let windowSize: CGFloat = 200.0
-  private let darkFg = NSColor(hex: "CCCCCC")
-  private let lightFg = NSColor(hex: "333333")
 
   private var feedbackWindow: NSWindow?
   private var welcomeWindow: NSPanel?
   private var feedbackViewModel: FeedbackViewModel?
-  private let MinimumTranscriptionDuration = 1.0
   private var audioLevelTimer: Timer?
-  private var autoUnloadManager: ModelAutoUnloadManager!
   private var historyManager: HistoryManager!
 
   // MARK: - Lifecycle
@@ -284,20 +113,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       object: nil
     )
 
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleSystemSleep),
-      name: NSWorkspace.willSleepNotification,
-      object: nil
-    )
-
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleSystemWake),
-      name: NSWorkspace.didWakeNotification,
-      object: nil
-    )
-
     KeyboardShortcuts.onKeyDown(for: .toggleRecording) { [weak self] in
       self?.startRecording()
     }
@@ -312,11 +127,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
     setupFeedbackWindow()
 
-    autoUnloadManager = ModelAutoUnloadManager(
-      settings: settingsManager,
-      delegate: self,
-      logger: logger
-    )
     historyManager = HistoryManager(settings: settingsManager)
 
     setupApplicationMenu()
@@ -326,20 +136,23 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
       UserDefaults.standard.set(true, forKey: "hasShownWelcome")
     }
 
-    Task {
+    Task { @MainActor in
       do {
-        let modelPath = settingsManager.getCurrentModelPath()
+        _ = try await ensureModelLoaded()
+        scheduleUnload()
+      } catch {
+        logger.error("Error loading model: \(error.localizedDescription)")
+      }
+    }
 
-        self.whisperContext = try WhisperContext.createContext(path: modelPath)
-        self.recorder = try await Recorder(whisperContext: self.whisperContext!)
-
-        DispatchQueue.main.async {
-          if !self.checkAccessibilityPermissions() {
-            self.promptForAccessibilityPermissions()
-          }
+    Task { @MainActor in
+      do {
+        recorder = try await Recorder()
+        if !checkAccessibilityPermissions() {
+          promptForAccessibilityPermissions()
         }
       } catch {
-        logger.error("Error creating Whisper context: \(error.localizedDescription)")
+        logger.error("Error creating recorder: \(error.localizedDescription)")
       }
     }
   }
@@ -452,20 +265,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
   }
 
-  // MARK: - System Sleep/Wake Handling
-
-  @objc func handleSystemSleep() {
-    Task { @MainActor in
-      autoUnloadManager.handleSleep()
-    }
-  }
-
-  @objc func handleSystemWake() {
-    Task { @MainActor in
-      autoUnloadManager.handleWake()
-    }
-  }
-
   // MARK: - Transcription
 
   // Translated from espanso's injectString function
@@ -493,9 +292,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         let currentChunkSize = min(chunkSize, buffer.count - i)
         let offsetBuffer = Array(buffer[i..<(i + currentChunkSize)])
 
-        if let e = CGEvent(keyboardEventSource: nil, virtualKey: 0x31, keyDown: true) {
-          e.keyboardSetUnicodeString(stringLength: currentChunkSize, unicodeString: offsetBuffer)
-          e.post(tap: .cghidEventTap)
+        if let keyDown = CGEvent(keyboardEventSource: nil, virtualKey: 0x31, keyDown: true),
+          let keyUp = CGEvent(keyboardEventSource: nil, virtualKey: 0x31, keyDown: false) {
+          keyDown.flags = []
+          keyDown.keyboardSetUnicodeString(stringLength: currentChunkSize, unicodeString: offsetBuffer)
+          keyDown.post(tap: .cghidEventTap)
+          usleep(udelay)
+          keyUp.flags = []
+          keyUp.post(tap: .cghidEventTap)
           self.logger.debug("Posted CGEvent chunk \((i/chunkSize) + 1)/\(totalChunks)")
         } else {
           self.logger.error("Failed to create CGEvent for chunk \((i/chunkSize) + 1)")
@@ -591,6 +395,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         // Reset timer when closing
         viewModel.recordingStartTime = nil
         viewModel.recordingDuration = 0
+        viewModel.liveText = ""
         self.stopAudioLevelPulsing()
         self.feedbackWindow?.orderOut(nil)
       }
@@ -598,12 +403,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
   }
 
   private func startAudioLevelPulsing() {
+    audioLevelTimer?.invalidate()
     audioLevelTimer = Timer.scheduledTimer(withTimeInterval: 0.0333, repeats: true) { [weak self] _ in
       guard let self = self, let recorder = self.recorder else { return }
 
       Task { @MainActor in
-        let audioLevel = await recorder.getAudioLevel()
-        self.feedbackViewModel?.audioLevel = audioLevel
+        self.feedbackViewModel?.audioLevel = recorder.audioLevel
 
         // Update recording duration if timer is running
         if let startTime = self.feedbackViewModel?.recordingStartTime {
@@ -639,7 +444,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     guard let statusItem = statusItem else { return }
 
     let menu = NSMenu()
-    menu.delegate = self
 
     menu.addItem(NSMenuItem.separator())
 
@@ -772,13 +576,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     NSApp.mainMenu = mainMenu
   }
 
-  @objc func openAccessibilitySettings() {
-    if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-      NSWorkspace.shared.open(url)
-      logger.info("Opened Accessibility settings")
-    }
-  }
-
   private func updateModelMenuSelection() {
     guard let menu = statusItem?.menu,
           let modelsMenuItem = menu.item(withTitle: "Models"),
@@ -861,6 +658,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
   // MARK: - Model Management
 
+  @MainActor
+  private func ensureModelLoaded() async throws -> WhisperContext {
+    if let whisperContext { return whisperContext }
+    let load = modelLoad ?? Task.detached { [path = settingsManager.getCurrentModelPath()] in
+      try WhisperContext.createContext(path: path)
+    }
+    modelLoad = load
+    defer {
+      if modelLoad == load { modelLoad = nil }
+    }
+    let context = try await load.value
+    if modelLoad == load {
+      whisperContext = context
+      logger.info("Model loaded")
+    }
+    return whisperContext ?? context
+  }
+
+  @MainActor
+  private func scheduleUnload() {
+    unloadTimer?.invalidate()
+    let autoUnload = settingsManager.config.autoUnload
+    guard autoUnload.enabled, whisperContext != nil, !isRecording else { return }
+    let timeout = TimeInterval(autoUnload.timeoutMinutes * 60)
+    logger.info("Scheduling model unload in \(timeout) seconds")
+    unloadTimer = Timer.scheduledTimer(
+      timeInterval: timeout, target: self, selector: #selector(unloadModel), userInfo: nil, repeats: false)
+  }
+
+  @MainActor
+  @objc private func unloadModel() {
+    whisperContext = nil
+    logger.info("Model unloaded")
+  }
+
   @objc func didSelectModel(_ sender: NSMenuItem) {
       guard let model = sender.representedObject as? ModelInfo else {
         return
@@ -874,58 +706,36 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
           return
         }
 
-        // Check if model is available
-        let isAvailable = settingsManager.isModelAvailable(model)
-
-        if isAvailable == true {
-          // Model is available, switch to it
+        if settingsManager.isModelAvailable(model) {
           await switchModel(to: model)
         } else {
-          // Model needs to be downloaded
-          if #available(macOS 12.0, *) {
-            await downloadAndSwitchModel(to: model)
-          } else {
-            // On older macOS versions, show an error
-            await MainActor.run {
-              self.showAlert(
-                title: "Download Not Available",
-                message: "Model downloading requires macOS 12.0 or later. Please upgrade your system or manually download the model."
-              )
-            }
-          }
+          await downloadAndSwitchModel(to: model)
         }
       }
     }
 
+  @MainActor
   private func switchModel(to model: ModelInfo) async {
     do {
-      // Stop recording if active
-      if await recorder?.getIsRecording() == true {
+      if isRecording {
         await recorder?.stopRecording()
       }
 
       // Show loading feedback
       showFeedback(.transcribing)
 
-      // Use SettingsManager to switch models
-      self.whisperContext = try await settingsManager.switchToModel(model) { path in
-        return try WhisperContext.createContext(path: path)
+      let context = try await settingsManager.switchToModel(model) { path in
+        try WhisperContext.createContext(path: path)
       }
+      modelLoad = nil
+      whisperContext = context
 
-      // Recreate recorder with new context
-      self.recorder = try await Recorder(whisperContext: self.whisperContext!)
-
-      // Update menu
-      await MainActor.run {
-        self.updateModelMenuSelection()
-        self.showFeedback(nil)
-      }
+      updateModelMenuSelection()
+      showFeedback(nil)
 
       logger.info("Successfully switched to model: \(model.displayName)")
 
-      // Schedule auto-unload for new model
-      await autoUnloadManager.scheduleUnload()
-
+      scheduleUnload()
     } catch {
       logger.error("Error switching model: \(error.localizedDescription)")
       showFeedback(nil)
@@ -933,7 +743,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
     }
   }
 
-  @available(macOS 12.0, *)
   private func downloadAndSwitchModel(to model: ModelInfo) async {
     do {
       // Use SettingsManager to download the model
@@ -986,70 +795,98 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
 
   // MARK: - Audio & Recording
 
+  @MainActor
+  private func setRecordingState(_ recording: Bool) {
+    isRecording = recording
+    statusItem?.button?.image = recording ? recordingImage : standbyImage
+    statusItem?.button?.appearsDisabled = false
+    statusItem?.button?.cell?.isHighlighted = recording
+    recordMenuItem?.title = recording ? "Stop Recording" : "Record"
+  }
+
+  @MainActor
+  private func startPreview() {
+    previewTask?.cancel()
+    previewTask = Task { @MainActor in
+      while true {
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+        guard !Task.isCancelled, isRecording, let recorder else { return }
+        guard let context = whisperContext else { continue }
+        let text = await context.transcribe(
+          samples: recorder.snapshot(seconds: 10), config: settingsManager.config, preview: true)
+        guard !Task.isCancelled else { return }
+        feedbackViewModel?.liveText = text
+      }
+    }
+  }
+
   @objc func Transcribe() {
     logger.debug("didTapStandby")
-    showFeedback(.transcribing)
-    isRecording = false
-    statusItem?.button?.image = standbyImage
-    statusItem?.button?.cell?.isHighlighted = false
-    recordMenuItem?.title = "Record"
 
-    Task {
-      await recorder!.stopRecording()
-      let duration = await recorder!.recordedDurationSeconds()
+    Task { @MainActor in
+      previewTask?.cancel()
+      previewTask = nil
+      setRecordingState(false)
+
+      guard let recorder else {
+        showFeedback(nil)
+        return
+      }
+      let samples = await recorder.stopRecording()
+      let duration = Double(samples.count) / 16000
       logger.info("Recording stopped. Duration: \(String(format: "%.2f", duration))s")
 
-      if duration > MinimumTranscriptionDuration {
-        let outputLang = settingsManager.config.language
-        let translate = settingsManager.config.translateToEnglish
-        let transcript = await recorder!.transcribe(language: outputLang.whisperLanguageCode, translate: translate)
-        logger.info("Transcription completed: \"\(transcript)\"")
-
-        let finalText = transcript
-
-        logger.info("Inserting text into cursor position: \"\(finalText)\"")
-        let insertionSucceeded = await self.insertStringAtCursor(finalText)
-        if !insertionSucceeded {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(finalText, forType: .string)
-            showError("Could not paste text at cursor. The transcription has been copied to clipboard instead. Please paste it manually (⌘V).")
-
-        }
-
-        await MainActor.run {
-          historyManager.addEntry(text: finalText)
-        }
-      } else {
+      guard samples.count > 16000 else {
         logger.info("Recording too short (\(String(format: "%.2f", duration))s), ignoring")
+        showFeedback(nil)
+        scheduleUnload()
+        return
       }
 
-      await autoUnloadManager.scheduleUnload()
+      do {
+        if whisperContext == nil {
+          showFeedback(.loading)
+        }
+        let context = try await ensureModelLoaded()
+        showFeedback(.transcribing)
+        let text = await context.transcribe(samples: samples, config: settingsManager.config)
+        logger.info("Transcription completed: \"\(text)\"")
+
+        let insertionSucceeded = await insertStringAtCursor(text)
+        if !insertionSucceeded {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(text, forType: .string)
+          showError("Could not paste text at cursor. The transcription has been copied to clipboard instead. Please paste it manually (⌘V).")
+        }
+
+        historyManager.addEntry(text: text)
+      } catch {
+        logger.error("Error loading model: \(error.localizedDescription)")
+        showError("Could not load the model: \(error.localizedDescription)")
+      }
+
       showFeedback(nil)
+      scheduleUnload()
     }
   }
 
   @objc func startRecording() {
-    isRecording = true
-    statusItem?.button?.image = recordingImage
-    statusItem?.button?.appearsDisabled = false
-    statusItem?.button?.cell?.isHighlighted = true
-    recordMenuItem?.title = "Stop Recording"
+    Task { @MainActor in
+      unloadTimer?.invalidate()
+      setRecordingState(true)
+      showFeedback(.recording)
 
-    Task {
       do {
-        try await autoUnloadManager.ensureModelLoaded(
-          getCurrentModelPath: { self.settingsManager.getCurrentModelPath() },
-          createContext: { path in try WhisperContext.createContext(path: path) },
-          createRecorder: { context in try await Recorder(whisperContext: context) }
-        )
-
-        await MainActor.run {
-          showFeedback(.recording)
+        if recorder == nil {
+          recorder = try await Recorder()
         }
-
         try await recorder?.startRecording()
       } catch {
         logger.error("Error starting recording: \(error.localizedDescription)")
+        await recorder?.stopRecording()
+        setRecordingState(false)
+        scheduleUnload()
+        showFeedback(nil)
 
         let alert = NSAlert()
         alert.messageText = "Recording Failed"
@@ -1057,12 +894,19 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDele
         alert.alertStyle = .critical
         alert.addButton(withTitle: "OK")
         alert.runModal()
+        return
+      }
 
-        isRecording = false
-        statusItem?.button?.image = standbyImage
-        statusItem?.button?.cell?.isHighlighted = false
-        recordMenuItem?.title = "Record"
-        showFeedback(nil)
+      guard isRecording else {
+        await recorder?.stopRecording()
+        scheduleUnload()
+        return
+      }
+      startPreview()
+      Task {
+        if (try? await ensureModelLoaded()) != nil {
+          scheduleUnload()
+        }
       }
     }
   }

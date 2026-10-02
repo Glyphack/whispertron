@@ -71,6 +71,15 @@ struct ModelsSettingsView: View {
           Label("Translate to English", systemImage: "globe")
             .symbolRenderingMode(.hierarchical)
         }
+
+        LabeledContent {
+          TextField("Vocabulary", text: $settings.config.vocabulary, prompt: Text("Pyright, Ruff, mypy"))
+            .labelsHidden()
+            .frame(maxWidth: 280)
+        } label: {
+          Label("Vocabulary", systemImage: "text.book.closed")
+            .symbolRenderingMode(.hierarchical)
+        }
       } header: {
         Text("Transcription")
       }
@@ -113,6 +122,7 @@ struct ModelsSettingsView: View {
     .scrollContentBackground(.hidden)
     .onChange(of: settings.config.language) { _ in settings.save() }
     .onChange(of: settings.config.translateToEnglish) { _ in settings.save() }
+    .onChange(of: settings.config.vocabulary) { _ in settings.save() }
     .onChange(of: settings.config.autoUnload.enabled) { _ in settings.save() }
     .onChange(of: settings.config.autoUnload.timeoutMinutes) { _ in settings.save() }
     .alert(isPresented: $showDownloadAlert) {
@@ -122,7 +132,7 @@ struct ModelsSettingsView: View {
         message: Text(pendingModel.map { "This will download \($0.displayName) to \(modelsPath)/. The download may take a few minutes." } ?? ""),
         primaryButton: .default(Text("Download")) {
           Task {
-            if let model = pendingModel, #available(macOS 12.0, *) {
+            if let model = pendingModel {
               await downloadModel(model)
             }
           }
@@ -162,7 +172,6 @@ struct ModelsSettingsView: View {
     }
   }
 
-  @available(macOS 12.0, *)
   private func downloadModel(_ model: ModelInfo) async {
     await MainActor.run {
       isDownloading = true

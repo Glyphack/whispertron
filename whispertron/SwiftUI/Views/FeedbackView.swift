@@ -20,9 +20,13 @@ struct FeedbackView: View {
         case .recording:
           audioVisualizerView
           timerView
-          Text("Recording")
+          Text(viewModel.liveText.isEmpty ? "Recording" : viewModel.liveText)
             .font(.system(size: 13, weight: .medium))
             .foregroundColor(.secondary)
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: 180, height: 48, alignment: .bottom)
+            .clipped()
 
         case .transcribing:
           pulsingWaveformView
@@ -55,15 +59,9 @@ struct FeedbackView: View {
     .frame(width: 200, height: 200)
   }
 
-  @ViewBuilder
   private var backgroundView: some View {
-    if #available(macOS 12.0, *) {
-      RoundedRectangle(cornerRadius: 15)
-        .fill(Material.ultraThinMaterial)
-    } else {
-      RoundedRectangle(cornerRadius: 15)
-        .fill(Color(NSColor.windowBackgroundColor).opacity(0.8))
-    }
+    RoundedRectangle(cornerRadius: 15)
+      .fill(Material.ultraThinMaterial)
   }
 
   @ViewBuilder
@@ -128,11 +126,6 @@ struct FeedbackView: View {
       .foregroundColor(.primary)
       .rotationEffect(.degrees(spinRotation))
       .frame(height: 80)
-  }
-
-  private var pulseOpacity: Double {
-    let time = Date().timeIntervalSinceReferenceDate
-    return 0.3 + (sin(time * 3) * 0.2)
   }
 
   private func pulseOpacity(for index: Int) -> Double {

@@ -112,10 +112,6 @@ enum ModelInfo: String, CaseIterable, Codable {
     var downloadURL: URL {
         return URL(string: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/\(fileName)?download=true")!
     }
-
-    func isAvailable(settings: AppSettings) -> Bool {
-        return settings.getModelPath(for: self) != nil
-    }
 }
 
 enum OutputLanguage: String, CaseIterable, Codable {
@@ -130,15 +126,6 @@ enum OutputLanguage: String, CaseIterable, Codable {
     case .english: return "EN"
     case .farsi: return "FA"
     case .dutch: return "NL"
-    }
-  }
-
-  var whisperLanguageCode: String? {
-    switch self {
-    case .auto: return nil
-    case .english: return "en"
-    case .farsi: return "fa"
-    case .dutch: return "nl"
     }
   }
 }
@@ -169,10 +156,11 @@ struct AppConfiguration: Codable {
     var autoUnload: ModelAutoUnloadSettings = ModelAutoUnloadSettings()
     var maxHistoryEntries: Int = 500
     var iconVisibility: IconVisibilityMode = .menubar
+    var vocabulary: String = ""
     static let defaults = AppConfiguration()
 
     enum CodingKeys: String, CodingKey {
-        case currentModel, language, translateToEnglish, autoUnload, maxHistoryEntries, iconVisibility
+        case currentModel, language, translateToEnglish, autoUnload, maxHistoryEntries, iconVisibility, vocabulary
     }
 
     init() {}
@@ -185,6 +173,7 @@ struct AppConfiguration: Codable {
         self.autoUnload = try c.decodeIfPresent(ModelAutoUnloadSettings.self, forKey: .autoUnload) ?? ModelAutoUnloadSettings()
         self.maxHistoryEntries = try c.decodeIfPresent(Int.self, forKey: .maxHistoryEntries) ?? 500
         self.iconVisibility = try c.decodeIfPresent(IconVisibilityMode.self, forKey: .iconVisibility) ?? .menubar
+        self.vocabulary = try c.decodeIfPresent(String.self, forKey: .vocabulary) ?? ""
     }
 }
 
@@ -202,9 +191,7 @@ class AppSettings: ObservableObject {
     }
 
     func updateAvailableModels() {
-        availableModels = ModelInfo.allCases.filter { model in
-            model.isAvailable(settings: self)
-        }
+        availableModels = ModelInfo.allCases.filter(isModelAvailable)
     }
     
     // MARK: - Persistence
@@ -287,7 +274,6 @@ class AppSettings: ObservableObject {
     }
     
     /// Downloads a model from HuggingFace to the Application Support directory
-    @available(macOS 12.0, *)
     func downloadModel(_ model: ModelInfo, progressHandler: @escaping @MainActor (Double) -> Void) async throws {
         guard !model.isBundled else { return }
 
@@ -350,18 +336,6 @@ class AppSettings: ObservableObject {
 
     // MARK: - Model Management Methods
 
-    /// Returns all available models (both bundled and downloaded)
-    func availableModels() async -> [ModelInfo] {
-        return ModelInfo.allCases.filter { model in
-            model.isAvailable(settings: self)
-        }
-    }
-
-    /// Returns the current model from configuration
-    func getCurrentModel() async -> ModelInfo {
-        return config.currentModel
-    }
-
     /// Sets the current model and saves configuration
     @MainActor
     func setCurrentModel(_ model: ModelInfo) async {
@@ -372,7 +346,7 @@ class AppSettings: ObservableObject {
 
     /// Checks if a model file exists and is available
     func isModelAvailable(_ model: ModelInfo) -> Bool {
-        return model.isAvailable(settings: self)
+        return getModelPath(for: model) != nil
     }
 
     // MARK: - Model Switching
@@ -407,7 +381,6 @@ class AppSettings: ObservableObject {
     /// - Parameter model: The model to download
     /// - Parameter confirmDownload: Callback to show confirmation dialog
     /// - Parameter progressHandler: Progress callback for download
-    @available(macOS 12.0, *)
     func downloadModelIfNeeded(
         _ model: ModelInfo,
         confirmDownload: () async -> Bool,
@@ -456,7 +429,6 @@ class AppSettings: ObservableObject {
     /// Resets all settings to their default values and saves to disk
     @MainActor
     func resetToDefaults() async {
-        objectWillChange.send()
         config = AppConfiguration.defaults
         save()
         logger.info("Settings reset to defaults")
