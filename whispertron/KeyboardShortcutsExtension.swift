@@ -8,6 +8,6 @@
 import KeyboardShortcuts
 
 extension KeyboardShortcuts.Name {
-  static let toggleRecording = Self("toggleRecording", default: .init(.f13))
+  static let toggleRecording = Self("toggleRecording", initial: .init(.f13))
   static let toggleRecordingButton = Self("toggleRecordingButton")
 }
