@@ -3,27 +3,20 @@ on:
   push:
     tags:
       - 'v*'
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: macos-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
-      - name: Install dependencies
-        run: brew install wget
-      - name: Grant execute permission for build script
-        run: chmod +x ./build.sh
+        uses: actions/checkout@v4
       - name: Build whispertron
         run: ./build.sh
-      - name: Locate built app
-        id: find_app
-        run: |
-          APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -type d -name "whispertron.app" | head -n1)
-          echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
       - name: Package build artifact
         id: package
         run: |
-          APP_PATH="${{ steps.find_app.outputs.app_path }}"
+          APP_PATH="build/Build/Products/Release/whispertron.app"
           VERSION="${GITHUB_REF_NAME#v}"
           ZIP_NAME="whispertron-$VERSION-macos-arm64.zip"
           STAGE="$RUNNER_TEMP/stage"
@@ -34,15 +27,8 @@ jobs:
           chmod +x "$STAGE/bin/whispertron"
           (cd "$STAGE" && zip -qry "$GITHUB_WORKSPACE/$ZIP_NAME" .)
           echo "zip_name=$ZIP_NAME" >> $GITHUB_OUTPUT
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: whispertron
-          path: ${{ steps.package.outputs.zip_name }}
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.package.outputs.zip_name }}
           tag_name: ${{ github.ref_name }}

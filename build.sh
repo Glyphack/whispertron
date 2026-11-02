@@ -30,7 +30,7 @@ else
     unzip -q -d whisper_xcframework "$FILE_PATH"
 fi
 
-xcodebuild -project whispertron.xcodeproj -scheme whispertron -configuration Release build ARCHS=arm64
+xcodebuild -project whispertron.xcodeproj -scheme whispertron -configuration Release -derivedDataPath build build ARCHS=arm64
 
 echo "you'll probably need to reset accessibility permissions before the build will work:"
 echo ""
@@ -38,8 +38,8 @@ echo "    tccutil reset Accessibility com.glyphack.whispertron"
 echo ""
 echo "then try running:"
 echo ""
-echo "    open ~/Library/Developer/Xcode/DerivedData/whispertron-*/Build/Products/Release/whispertron.app"
+echo "    open build/Build/Products/Release/whispertron.app"
 echo ""
 echo "or copy to your app folder for usage:"
 echo ""
-echo "    ditto ~/Library/Developer/Xcode/DerivedData/whispertron-*/Build/Products/Release/whispertron.app /Applications/whispertron.app"
+echo "    ditto build/Build/Products/Release/whispertron.app /Applications/whispertron.app"
