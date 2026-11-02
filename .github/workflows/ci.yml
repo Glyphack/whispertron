@@ -3,21 +3,30 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and release'
+        required: true
 permissions:
   contents: write
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
       - name: Build whispertron
         run: ./build.sh
       - name: Package build artifact
         id: package
         run: |
           APP_PATH="build/Build/Products/Release/whispertron.app"
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG#v}"
           ZIP_NAME="whispertron-$VERSION-macos-arm64.zip"
           STAGE="$RUNNER_TEMP/stage"
           rm -rf "$STAGE"
@@ -31,6 +40,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.package.outputs.zip_name }}
-          tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.TAG }}
           body: 'Automated release of whispertron'
