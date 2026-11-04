@@ -24,6 +24,7 @@
 		ED99AA042F0001000000A004 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED99AA032F0001000000A003 /* GeneralSettingsView.swift */; };
 		ED99AA062F0001000000A006 /* ModelsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED99AA052F0001000000A005 /* ModelsSettingsView.swift */; };
 		EDDD7A5E2EF0147600806A79 /* KeyboardShortcuts in Frameworks */ = {isa = PBXBuildFile; productRef = D7ECCB3B2CB9BD4B00558637 /* KeyboardShortcuts */; };
+		EDF3AD9D30820F6700BE6B2B /* DiagnosticLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDF3AD9C30820F6700BE6B2B /* DiagnosticLog.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -58,6 +59,7 @@
 		ED99AA012F0001000000A001 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		ED99AA032F0001000000A003 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		ED99AA052F0001000000A005 /* ModelsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelsSettingsView.swift; sourceTree = "<group>"; };
+		EDF3AD9C30820F6700BE6B2B /* DiagnosticLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticLog.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,6 +105,7 @@
 				E1A1B1A02EA80A1100000001 /* SettingsManager.swift */,
 				ED892BFE2EF0B88E00D395C2 /* KeyboardShortcutsExtension.swift */,
 				D7C3BEB12CBACF0E00AEB012 /* whispertron.entitlements */,
+				EDF3AD9C30820F6700BE6B2B /* DiagnosticLog.swift */,
 			);
 			path = whispertron;
 			sourceTree = "<group>";
@@ -248,6 +251,7 @@
 				40F8347C2CA71E4E007DAA65 /* main.swift in Sources */,
 				ED892BF22EF0B1DF00D395C2 /* FeedbackView.swift in Sources */,
 				E1A1B1A12EA80A1100000001 /* SettingsManager.swift in Sources */,
+				EDF3AD9D30820F6700BE6B2B /* DiagnosticLog.swift in Sources */,
 				ED000001300000000000001 /* WelcomeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

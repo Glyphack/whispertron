@@ -12,4 +12,4 @@ models/
 build/
 
 whisper_xcframework/
-whisper-v*-xcframework.zip
+whisper-*-xcframework.zip

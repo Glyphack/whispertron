@@ -106,6 +106,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
   }
 
   func applicationDidFinishLaunching(_ aNotification: Notification) {
+    WhisperContext.installLogging()
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(refreshMenuBar),
@@ -497,6 +498,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     let historyItem = NSMenuItem(title: "History", action: #selector(openHistory), keyEquivalent: "")
     menu.addItem(historyItem)
+    menu.addItem(NSMenuItem(title: "Show Log File", action: #selector(showLogFile), keyEquivalent: ""))
 
     menu.addItem(NSMenuItem.separator())
 
@@ -838,6 +840,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
       guard samples.count > 16000 else {
         logger.info("Recording too short (\(String(format: "%.2f", duration))s), ignoring")
+        DiagnosticLog.shared.write("recording too short, ignored")
         showFeedback(nil)
         scheduleUnload()
         return
@@ -920,6 +923,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
   }
 
   // MARK: - Main Window
+
+  @objc func showLogFile() {
+    NSWorkspace.shared.activateFileViewerSelecting([DiagnosticLog.shared.url])
+  }
 
   @objc func openHistory() {
     openMainWindow(initialTab: .history)
